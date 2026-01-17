@@ -23,21 +23,21 @@ type Category = {
 const categories: Category[] = [
   { id: "home", name: "ホーム", icon: Home, type: "main", href: "/" },
   { id: "favorites", name: "お気に入り", icon: Heart, type: "main", href: "/favorites" },
-  { id: "cafe", name: "カフェ", icon: Coffee, type: "business" },
-  { id: "salon", name: "美容室", icon: Scissors, type: "business" },
-  { id: "restaurant", name: "レストラン", icon: UtensilsCrossed, type: "business" },
-  { id: "retail", name: "アパレル", icon: Shirt, type: "business" },
-  { id: "hotel", name: "ホテル", icon: Hotel, type: "business" },
-  { id: "store", name: "小売店", icon: Store, type: "business" },
+  { id: "cafe", name: "カフェ", icon: Coffee, type: "business", href: "/category/cafe" },
+  { id: "salon", name: "美容室", icon: Scissors, type: "business", href: "/category/salon" },
+  { id: "restaurant", name: "レストラン", icon: UtensilsCrossed, type: "business", href: "/category/restaurant" },
+  { id: "apparel", name: "アパレル", icon: Shirt, type: "business", href: "/category/apparel" },
+  { id: "hotel", name: "ホテル", icon: Hotel, type: "business", href: "/category/hotel" },
+  { id: "retail", name: "小売店", icon: Store, type: "business", href: "/category/retail" },
 ]
 
 const genres = [
-  { id: "jazz", name: "ジャズ" },
-  { id: "pop", name: "ポップ" },
-  { id: "bossa", name: "ボサノバ" },
-  { id: "classical", name: "クラシック" },
-  { id: "ambient", name: "アンビエント" },
-  { id: "lounge", name: "ラウンジ" },
+  { id: "jazz", name: "ジャズ", href: "/genre/jazz" },
+  { id: "pop", name: "ポップ", href: "/genre/pop" },
+  { id: "bossanova", name: "ボサノバ", href: "/genre/bossanova" },
+  { id: "classical", name: "クラシック", href: "/genre/classical" },
+  { id: "ambient", name: "アンビエント", href: "/genre/ambient" },
+  { id: "lounge", name: "ラウンジ", href: "/genre/lounge" },
 ]
 
 // Sidebar content component (shared between desktop and mobile)
@@ -66,8 +66,9 @@ function SidebarContent({
     onClose?.()
   }
 
-  const handleGenreClick = (genreId: string) => {
-    setActiveCategory(genreId)
+  const handleGenreClick = (genre: { id: string; name: string; href: string }) => {
+    setActiveCategory(genre.id)
+    router.push(genre.href)
     onClose?.()
   }
 
@@ -153,7 +154,7 @@ function SidebarContent({
               {genres.map((genre) => (
                 <button
                   key={genre.id}
-                  onClick={() => handleGenreClick(genre.id)}
+                  onClick={() => handleGenreClick(genre)}
                   className={cn(
                     "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                     activeCategory === genre.id
