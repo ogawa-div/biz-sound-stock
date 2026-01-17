@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -18,7 +18,7 @@ import {
 import { useAuth } from "@/lib/auth/context"
 import { PLANS } from "@/lib/stripe/plans"
 
-export default function PricingPage() {
+function PricingContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, profile, isLoading: authLoading } = useAuth()
@@ -310,5 +310,17 @@ export default function PricingPage() {
         </div>
       </main>
     </div>
+  )
+}
+
+export default function PricingPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-accent" />
+      </div>
+    }>
+      <PricingContent />
+    </Suspense>
   )
 }

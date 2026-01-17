@@ -97,10 +97,11 @@ export async function getTopSongsAnalytics(
     (acc, log) => {
       const songId = log.song_id;
       if (!acc[songId]) {
+        const song = log.songs as unknown as { title: string; artist: string } | null;
         acc[songId] = {
           song_id: songId,
-          title: (log.songs as { title: string; artist: string }).title,
-          artist: (log.songs as { title: string; artist: string }).artist,
+          title: song?.title || "Unknown",
+          artist: song?.artist || "Unknown",
           play_count: 0,
         };
       }
@@ -141,7 +142,8 @@ export async function getPlaysByBusinessType(
   // Aggregate by business type
   const typeCounts = (data || []).reduce(
     (acc, log) => {
-      const businessType = (log.profiles as { business_type: string | null }).business_type || "other";
+      const profile = log.profiles as unknown as { business_type: string | null } | null;
+      const businessType = profile?.business_type || "other";
       if (!acc[businessType]) {
         acc[businessType] = { business_type: businessType, play_count: 0 };
       }
@@ -179,7 +181,8 @@ export async function getPlaysByGenre(
   // Aggregate by genre
   const genreCounts = (data || []).reduce(
     (acc, log) => {
-      const genre = (log.songs as { genre: string }).genre;
+      const song = log.songs as unknown as { genre: string } | null;
+      const genre = song?.genre || "other";
       if (!acc[genre]) {
         acc[genre] = { genre, play_count: 0 };
       }
@@ -224,8 +227,10 @@ export async function getGenreByBusinessType(
   // Aggregate by business type and genre
   const counts = (data || []).reduce(
     (acc, log) => {
-      const businessType = (log.profiles as { business_type: string | null }).business_type || "other";
-      const genre = (log.songs as { genre: string }).genre;
+      const profile = log.profiles as unknown as { business_type: string | null } | null;
+      const song = log.songs as unknown as { genre: string } | null;
+      const businessType = profile?.business_type || "other";
+      const genre = song?.genre || "other";
       const key = `${businessType}-${genre}`;
       
       if (!acc[key]) {
