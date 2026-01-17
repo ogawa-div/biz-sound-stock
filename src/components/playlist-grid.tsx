@@ -48,7 +48,7 @@ export function PlaylistGrid() {
       try {
         setIsLoading(true)
         const [newReleasesData, featuredData] = await Promise.all([
-          getNewReleases(6),
+          getNewReleases(3),
           getFeaturedPlaylists(),
         ])
         setNewReleases(newReleasesData)
