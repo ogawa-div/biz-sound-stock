@@ -266,11 +266,7 @@ function PricingContent() {
                 ))}
               </ul>
 
-              {authLoading ? (
-                <Button disabled className="w-full">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                </Button>
-              ) : isPremium ? (
+              {isPremium ? (
                 <Button 
                   className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
                   onClick={handleManageSubscription}
