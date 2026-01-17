@@ -133,7 +133,7 @@ Phase 4: 本番デプロイ [████████░░░░░░░░░
 - [x] R2バケット非公開設定確認（署名付きURL経由のみアクセス）✅
 
 ### 4.2 デプロイ
-- [ ] GitHub リポジトリ作成 & Push
+- [x] GitHub リポジトリ作成 & Push ✅ https://github.com/ogawa-div/biz-sound-stock
 - [ ] Vercel プロジェクト作成
 - [ ] Vercel 環境変数設定
 - [ ] デプロイ & 動作確認
