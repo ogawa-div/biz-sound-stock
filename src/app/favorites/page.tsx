@@ -20,6 +20,11 @@ export default function FavoritesPage() {
   const setPlaylist = usePlayerStore((state) => state.setPlaylist)
 
   useEffect(() => {
+    // タイムアウト: 5秒以上かかったらローディングを終了
+    const timeout = setTimeout(() => {
+      setIsLoading(false)
+    }, 5000)
+
     async function fetchFavorites() {
       if (!user) {
         setIsLoading(false)
@@ -37,23 +42,37 @@ export default function FavoritesPage() {
           .eq("user_id", user.id)
           .not("playlist_id", "is", null)
 
-        if (error) throw error
-
-        const playlists = (data
-          ?.map((item) => item.playlists as unknown as Playlist)
-          .filter((p) => p !== null) || []) as Playlist[]
-        
-        setFavorites(playlists)
+        if (error) {
+          console.error("Error fetching favorites:", error)
+          // エラーが発生しても空の状態を表示
+          setFavorites([])
+        } else {
+          const playlists = (data
+            ?.map((item) => item.playlists as unknown as Playlist)
+            .filter((p) => p !== null) || []) as Playlist[]
+          
+          setFavorites(playlists)
+        }
       } catch (error) {
         console.error("Error fetching favorites:", error)
+        setFavorites([])
       } finally {
         setIsLoading(false)
       }
     }
 
+    // authLoading が完了したら、または 2秒後に実行
     if (!authLoading) {
       fetchFavorites()
+    } else {
+      // authLoading が長すぎる場合のフォールバック
+      const authTimeout = setTimeout(() => {
+        fetchFavorites()
+      }, 2000)
+      return () => clearTimeout(authTimeout)
     }
+
+    return () => clearTimeout(timeout)
   }, [user, authLoading])
 
   const handlePlayPlaylist = async (playlist: Playlist) => {
@@ -87,7 +106,8 @@ export default function FavoritesPage() {
     }
   }
 
-  if (authLoading || isLoading) {
+  // isLoading のみでチェック（authLoading は内部で処理済み）
+  if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-accent" />
