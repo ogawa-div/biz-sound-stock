@@ -12,7 +12,7 @@ import type { Playlist } from "@/types/database"
 import Link from "next/link"
 
 export default function FavoritesPage() {
-  const { user, loading: authLoading } = useAuth()
+  const { user, isLoading: authLoading } = useAuth()
   const [favorites, setFavorites] = useState<Playlist[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadingPlaylistId, setLoadingPlaylistId] = useState<string | null>(null)
@@ -39,9 +39,9 @@ export default function FavoritesPage() {
 
         if (error) throw error
 
-        const playlists = data
-          ?.map((item) => item.playlists)
-          .filter((p): p is Playlist => p !== null) || []
+        const playlists = (data
+          ?.map((item) => item.playlists as unknown as Playlist)
+          .filter((p) => p !== null) || []) as Playlist[]
         
         setFavorites(playlists)
       } catch (error) {
