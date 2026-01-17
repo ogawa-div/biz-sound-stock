@@ -45,16 +45,19 @@ export function PlaylistGrid() {
   // Fetch playlists on mount
   useEffect(() => {
     async function fetchPlaylists() {
+      console.log('[PlaylistGrid] Starting to fetch playlists...')
       try {
         setIsLoading(true)
         const [newReleasesData, featuredData] = await Promise.all([
           getNewReleases(3),
           getFeaturedPlaylists(),
         ])
+        console.log('[PlaylistGrid] New Releases:', newReleasesData)
+        console.log('[PlaylistGrid] Featured:', featuredData)
         setNewReleases(newReleasesData)
         setFeaturedPlaylists(featuredData)
       } catch (error) {
-        console.error("Error fetching playlists:", error)
+        console.error("[PlaylistGrid] Error fetching playlists:", error)
       } finally {
         setIsLoading(false)
       }

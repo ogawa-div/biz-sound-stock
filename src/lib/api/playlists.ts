@@ -9,7 +9,9 @@ import type { Playlist, Song } from "@/types/database";
  * Get new releases - public playlists ordered by creation date
  */
 export async function getNewReleases(limit: number = 6): Promise<Playlist[]> {
+  console.log('[API] getNewReleases called with limit:', limit);
   const supabase = getSupabaseClient();
+  console.log('[API] Supabase client obtained');
   
   const { data, error } = await supabase
     .from("playlists")
@@ -17,6 +19,8 @@ export async function getNewReleases(limit: number = 6): Promise<Playlist[]> {
     .eq("is_public", true)
     .order("created_at", { ascending: false })
     .limit(limit);
+  
+  console.log('[API] getNewReleases result:', { data, error });
   
   if (error) {
     console.error("Error fetching new releases:", error);
