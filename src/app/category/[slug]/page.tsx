@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -15,8 +15,9 @@ const categoryMap: Record<string, { name: string; businessType: string }> = {
   salon: { name: "美容室", businessType: "salon" },
   restaurant: { name: "レストラン", businessType: "restaurant" },
   apparel: { name: "アパレル", businessType: "apparel" },
-  hotel: { name: "ホテル", businessType: "hotel" },
   retail: { name: "小売店", businessType: "retail" },
+  hotel: { name: "ホテル", businessType: "hotel" },
+  store: { name: "小売店", businessType: "store" },
 }
 
 export default function CategoryPage() {
@@ -26,18 +27,23 @@ export default function CategoryPage() {
 
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [hasFetched, setHasFetched] = useState(false)
   const [loadingPlaylistId, setLoadingPlaylistId] = useState<string | null>(null)
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
+  const mountedRef = useRef(true)
   
   const setPlaylist = usePlayerStore((state) => state.setPlaylist)
 
   useEffect(() => {
-    // タイムアウト: 5秒以上かかったらローディングを終了
-    const timeout = setTimeout(() => {
-      setIsLoading(false)
-    }, 5000)
+    mountedRef.current = true
 
     async function fetchPlaylists() {
+      // 既に取得済みならスキップ
+      if (hasFetched) {
+        setIsLoading(false)
+        return
+      }
+
       if (!category) {
         setIsLoading(false)
         return
@@ -45,19 +51,30 @@ export default function CategoryPage() {
 
       try {
         const data = await getPlaylistsByBusinessType(category.businessType)
-        setPlaylists(data)
+        
+        // マウント状態をチェック
+        if (mountedRef.current) {
+          setPlaylists(data)
+          setHasFetched(true)
+        }
       } catch (error) {
         console.error("Error fetching playlists:", error)
-        setPlaylists([])
+        if (mountedRef.current) {
+          setPlaylists([])
+        }
       } finally {
-        setIsLoading(false)
+        if (mountedRef.current) {
+          setIsLoading(false)
+        }
       }
     }
 
     fetchPlaylists()
 
-    return () => clearTimeout(timeout)
-  }, [category])
+    return () => {
+      mountedRef.current = false
+    }
+  }, [category, hasFetched])
 
   const handlePlayPlaylist = async (playlist: Playlist) => {
     try {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,7 @@ import Link from "next/link"
 const genreMap: Record<string, string> = {
   jazz: "ジャズ",
   pop: "ポップ",
+  bossa: "ボサノバ",
   bossanova: "ボサノバ",
   classical: "クラシック",
   ambient: "アンビエント",
@@ -28,18 +29,23 @@ export default function GenrePage() {
 
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [hasFetched, setHasFetched] = useState(false)
   const [loadingPlaylistId, setLoadingPlaylistId] = useState<string | null>(null)
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
+  const mountedRef = useRef(true)
   
   const setPlaylist = usePlayerStore((state) => state.setPlaylist)
 
   useEffect(() => {
-    // タイムアウト: 5秒以上かかったらローディングを終了
-    const timeout = setTimeout(() => {
-      setIsLoading(false)
-    }, 5000)
+    mountedRef.current = true
 
     async function fetchPlaylists() {
+      // 既に取得済みならスキップ
+      if (hasFetched) {
+        setIsLoading(false)
+        return
+      }
+
       if (!genreName) {
         setIsLoading(false)
         return
@@ -47,19 +53,30 @@ export default function GenrePage() {
 
       try {
         const data = await getPlaylistsByGenre(slug)
-        setPlaylists(data)
+        
+        // マウント状態をチェック
+        if (mountedRef.current) {
+          setPlaylists(data)
+          setHasFetched(true)
+        }
       } catch (error) {
         console.error("Error fetching playlists:", error)
-        setPlaylists([])
+        if (mountedRef.current) {
+          setPlaylists([])
+        }
       } finally {
-        setIsLoading(false)
+        if (mountedRef.current) {
+          setIsLoading(false)
+        }
       }
     }
 
     fetchPlaylists()
 
-    return () => clearTimeout(timeout)
-  }, [slug, genreName])
+    return () => {
+      mountedRef.current = false
+    }
+  }, [slug, genreName, hasFetched])
 
   const handlePlayPlaylist = async (playlist: Playlist) => {
     try {

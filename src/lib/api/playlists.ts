@@ -53,42 +53,52 @@ export async function getFeaturedPlaylists(): Promise<Playlist[]> {
 export async function getPlaylistsByBusinessType(
   businessType: string
 ): Promise<Playlist[]> {
-  const supabase = getSupabaseClient();
-  
-  const { data, error } = await supabase
-    .from("playlists")
-    .select("*")
-    .eq("is_public", true)
-    .contains("target_business_type", [businessType])
-    .order("created_at", { ascending: false });
-  
-  if (error) {
+  try {
+    const supabase = getSupabaseClient();
+    
+    const { data, error } = await supabase
+      .from("playlists")
+      .select("*")
+      .eq("is_public", true)
+      .contains("target_business_type", [businessType])
+      .order("created_at", { ascending: false });
+    
+    if (error) {
+      console.error("Error fetching playlists by business type:", error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
     console.error("Error fetching playlists by business type:", error);
-    throw error;
+    return [];
   }
-  
-  return data || [];
 }
 
 /**
  * Get playlists by genre
  */
 export async function getPlaylistsByGenre(genre: string): Promise<Playlist[]> {
-  const supabase = getSupabaseClient();
-  
-  const { data, error } = await supabase
-    .from("playlists")
-    .select("*")
-    .eq("is_public", true)
-    .eq("primary_genre", genre)
-    .order("created_at", { ascending: false });
-  
-  if (error) {
+  try {
+    const supabase = getSupabaseClient();
+    
+    const { data, error } = await supabase
+      .from("playlists")
+      .select("*")
+      .eq("is_public", true)
+      .eq("primary_genre", genre)
+      .order("created_at", { ascending: false });
+    
+    if (error) {
+      console.error("Error fetching playlists by genre:", error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
     console.error("Error fetching playlists by genre:", error);
-    throw error;
+    return [];
   }
-  
-  return data || [];
 }
 
 /**
