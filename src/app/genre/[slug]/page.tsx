@@ -34,6 +34,11 @@ export default function GenrePage() {
   const setPlaylist = usePlayerStore((state) => state.setPlaylist)
 
   useEffect(() => {
+    // タイムアウト: 5秒以上かかったらローディングを終了
+    const timeout = setTimeout(() => {
+      setIsLoading(false)
+    }, 5000)
+
     async function fetchPlaylists() {
       if (!genreName) {
         setIsLoading(false)
@@ -45,12 +50,15 @@ export default function GenrePage() {
         setPlaylists(data)
       } catch (error) {
         console.error("Error fetching playlists:", error)
+        setPlaylists([])
       } finally {
         setIsLoading(false)
       }
     }
 
     fetchPlaylists()
+
+    return () => clearTimeout(timeout)
   }, [slug, genreName])
 
   const handlePlayPlaylist = async (playlist: Playlist) => {

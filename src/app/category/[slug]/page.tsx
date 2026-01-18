@@ -32,6 +32,11 @@ export default function CategoryPage() {
   const setPlaylist = usePlayerStore((state) => state.setPlaylist)
 
   useEffect(() => {
+    // タイムアウト: 5秒以上かかったらローディングを終了
+    const timeout = setTimeout(() => {
+      setIsLoading(false)
+    }, 5000)
+
     async function fetchPlaylists() {
       if (!category) {
         setIsLoading(false)
@@ -43,12 +48,15 @@ export default function CategoryPage() {
         setPlaylists(data)
       } catch (error) {
         console.error("Error fetching playlists:", error)
+        setPlaylists([])
       } finally {
         setIsLoading(false)
       }
     }
 
     fetchPlaylists()
+
+    return () => clearTimeout(timeout)
   }, [category])
 
   const handlePlayPlaylist = async (playlist: Playlist) => {
