@@ -164,7 +164,7 @@ export async function getPlaylistSongs(playlistId: string): Promise<Song[]> {
   }
   
   // Extract songs from the joined data
-  return (data || []).map((item) => item.songs as unknown as Song);
+  return (data || []).map((item: { songs: unknown }) => item.songs as unknown as Song);
 }
 
 /**

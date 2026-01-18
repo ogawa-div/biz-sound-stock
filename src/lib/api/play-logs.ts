@@ -61,6 +61,18 @@ export async function getTotalPlayCount(
   return count || 0;
 }
 
+// Types for analytics
+type SongCount = { song_id: string; title: string; artist: string; play_count: number };
+type BusinessTypeCount = { business_type: string; play_count: number };
+type GenreCount = { genre: string; play_count: number };
+type BusinessGenreCount = { business_type: string; genre: string; play_count: number };
+type DateCount = { date: string; play_count: number };
+
+type PlayLogWithSongs = { song_id: string; songs: unknown };
+type PlayLogWithProfiles = { profiles: unknown };
+type PlayLogWithSongsAndProfiles = { songs: unknown; profiles: unknown };
+type PlayLogWithDate = { played_at: string };
+
 /**
  * Get top songs by play count for a date range
  */
@@ -68,14 +80,7 @@ export async function getTopSongsAnalytics(
   startDate: Date,
   endDate: Date,
   limit: number = 10
-): Promise<
-  Array<{
-    song_id: string;
-    title: string;
-    artist: string;
-    play_count: number;
-  }>
-> {
+): Promise<SongCount[]> {
   const supabase = getSupabaseClient();
   
   const { data, error } = await supabase
@@ -93,11 +98,11 @@ export async function getTopSongsAnalytics(
   }
   
   // Aggregate by song
-  const songCounts = (data || []).reduce(
-    (acc, log) => {
+  const songCounts = (data as PlayLogWithSongs[] || []).reduce(
+    (acc: Record<string, SongCount>, log: PlayLogWithSongs) => {
       const songId = log.song_id;
       if (!acc[songId]) {
-        const song = log.songs as unknown as { title: string; artist: string } | null;
+        const song = log.songs as { title: string; artist: string } | null;
         acc[songId] = {
           song_id: songId,
           title: song?.title || "Unknown",
@@ -108,7 +113,7 @@ export async function getTopSongsAnalytics(
       acc[songId].play_count++;
       return acc;
     },
-    {} as Record<string, { song_id: string; title: string; artist: string; play_count: number }>
+    {} as Record<string, SongCount>
   );
   
   // Sort by play count and limit
@@ -123,7 +128,7 @@ export async function getTopSongsAnalytics(
 export async function getPlaysByBusinessType(
   startDate: Date,
   endDate: Date
-): Promise<Array<{ business_type: string; play_count: number }>> {
+): Promise<BusinessTypeCount[]> {
   const supabase = getSupabaseClient();
   
   const { data, error } = await supabase
@@ -140,9 +145,9 @@ export async function getPlaysByBusinessType(
   }
   
   // Aggregate by business type
-  const typeCounts = (data || []).reduce(
-    (acc, log) => {
-      const profile = log.profiles as unknown as { business_type: string | null } | null;
+  const typeCounts = (data as PlayLogWithProfiles[] || []).reduce(
+    (acc: Record<string, BusinessTypeCount>, log: PlayLogWithProfiles) => {
+      const profile = log.profiles as { business_type: string | null } | null;
       const businessType = profile?.business_type || "other";
       if (!acc[businessType]) {
         acc[businessType] = { business_type: businessType, play_count: 0 };
@@ -150,7 +155,7 @@ export async function getPlaysByBusinessType(
       acc[businessType].play_count++;
       return acc;
     },
-    {} as Record<string, { business_type: string; play_count: number }>
+    {} as Record<string, BusinessTypeCount>
   );
   
   return Object.values(typeCounts).sort((a, b) => b.play_count - a.play_count);
@@ -162,7 +167,7 @@ export async function getPlaysByBusinessType(
 export async function getPlaysByGenre(
   startDate: Date,
   endDate: Date
-): Promise<Array<{ genre: string; play_count: number }>> {
+): Promise<GenreCount[]> {
   const supabase = getSupabaseClient();
   
   const { data, error } = await supabase
@@ -179,9 +184,10 @@ export async function getPlaysByGenre(
   }
   
   // Aggregate by genre
-  const genreCounts = (data || []).reduce(
-    (acc, log) => {
-      const song = log.songs as unknown as { genre: string } | null;
+  type SongWithGenre = { songs: unknown };
+  const genreCounts = (data as SongWithGenre[] || []).reduce(
+    (acc: Record<string, GenreCount>, log: SongWithGenre) => {
+      const song = log.songs as { genre: string } | null;
       const genre = song?.genre || "other";
       if (!acc[genre]) {
         acc[genre] = { genre, play_count: 0 };
@@ -189,7 +195,7 @@ export async function getPlaysByGenre(
       acc[genre].play_count++;
       return acc;
     },
-    {} as Record<string, { genre: string; play_count: number }>
+    {} as Record<string, GenreCount>
   );
   
   return Object.values(genreCounts).sort((a, b) => b.play_count - a.play_count);
@@ -201,13 +207,7 @@ export async function getPlaysByGenre(
 export async function getGenreByBusinessType(
   startDate: Date,
   endDate: Date
-): Promise<
-  Array<{
-    business_type: string;
-    genre: string;
-    play_count: number;
-  }>
-> {
+): Promise<BusinessGenreCount[]> {
   const supabase = getSupabaseClient();
   
   const { data, error } = await supabase
@@ -225,10 +225,10 @@ export async function getGenreByBusinessType(
   }
   
   // Aggregate by business type and genre
-  const counts = (data || []).reduce(
-    (acc, log) => {
-      const profile = log.profiles as unknown as { business_type: string | null } | null;
-      const song = log.songs as unknown as { genre: string } | null;
+  const counts = (data as PlayLogWithSongsAndProfiles[] || []).reduce(
+    (acc: Record<string, BusinessGenreCount>, log: PlayLogWithSongsAndProfiles) => {
+      const profile = log.profiles as { business_type: string | null } | null;
+      const song = log.songs as { genre: string } | null;
       const businessType = profile?.business_type || "other";
       const genre = song?.genre || "other";
       const key = `${businessType}-${genre}`;
@@ -239,7 +239,7 @@ export async function getGenreByBusinessType(
       acc[key].play_count++;
       return acc;
     },
-    {} as Record<string, { business_type: string; genre: string; play_count: number }>
+    {} as Record<string, BusinessGenreCount>
   );
   
   return Object.values(counts).sort((a, b) => b.play_count - a.play_count);
@@ -251,7 +251,7 @@ export async function getGenreByBusinessType(
 export async function getDailyPlayCounts(
   startDate: Date,
   endDate: Date
-): Promise<Array<{ date: string; play_count: number }>> {
+): Promise<DateCount[]> {
   const supabase = getSupabaseClient();
   
   const { data, error } = await supabase
@@ -266,8 +266,8 @@ export async function getDailyPlayCounts(
   }
   
   // Aggregate by date
-  const dateCounts = (data || []).reduce(
-    (acc, log) => {
+  const dateCounts = (data as PlayLogWithDate[] || []).reduce(
+    (acc: Record<string, DateCount>, log: PlayLogWithDate) => {
       const date = log.played_at.split("T")[0];
       if (!acc[date]) {
         acc[date] = { date, play_count: 0 };
@@ -275,7 +275,7 @@ export async function getDailyPlayCounts(
       acc[date].play_count++;
       return acc;
     },
-    {} as Record<string, { date: string; play_count: number }>
+    {} as Record<string, DateCount>
   );
   
   return Object.values(dateCounts).sort((a, b) => a.date.localeCompare(b.date));

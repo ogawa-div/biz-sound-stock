@@ -20,7 +20,7 @@ export default function ResetPasswordPage() {
   // Check if we have a valid session from the reset link
   useEffect(() => {
     const supabase = getSupabaseClient()
-    supabase.auth.onAuthStateChange((event) => {
+    supabase.auth.onAuthStateChange((event: string) => {
       if (event === "PASSWORD_RECOVERY") {
         // User came from password reset link
       }

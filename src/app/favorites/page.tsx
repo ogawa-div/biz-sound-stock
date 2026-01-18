@@ -48,8 +48,8 @@ export default function FavoritesPage() {
           setFavorites([])
         } else {
           const playlists = (data
-            ?.map((item) => item.playlists as unknown as Playlist)
-            .filter((p) => p !== null) || []) as Playlist[]
+            ?.map((item: { playlists: unknown }) => item.playlists as unknown as Playlist)
+            .filter((p: Playlist | null) => p !== null) || []) as Playlist[]
           
           setFavorites(playlists)
         }

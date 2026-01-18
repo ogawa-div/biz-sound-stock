@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Heart, Play, Loader2, ArrowLeft, Music } from "lucide-react"
-import { getPlaylistsByGenre, getPlaylistSongs } from "@/lib/api/playlists"
+import { getPlaylistSongs } from "@/lib/api/playlists"
+import { getSupabaseClient } from "@/lib/supabase/client"
 import { usePlayerStore } from "@/store/player-store"
 import type { Playlist } from "@/types/database"
 import Link from "next/link"
@@ -28,55 +29,54 @@ export default function GenrePage() {
   const genreName = genreMap[slug]
 
   const [playlists, setPlaylists] = useState<Playlist[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [hasFetched, setHasFetched] = useState(false)
+  const [status, setStatus] = useState<"loading" | "success" | "error">("loading")
   const [loadingPlaylistId, setLoadingPlaylistId] = useState<string | null>(null)
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
-  const mountedRef = useRef(true)
   
   const setPlaylist = usePlayerStore((state) => state.setPlaylist)
 
-  useEffect(() => {
-    mountedRef.current = true
+  // データ取得関数を useCallback で定義
+  const fetchPlaylists = useCallback(async () => {
+    if (!genreName) {
+      setStatus("success")
+      return
+    }
 
-    async function fetchPlaylists() {
-      // 既に取得済みならスキップ
-      if (hasFetched) {
-        setIsLoading(false)
-        return
-      }
+    setStatus("loading")
 
-      if (!genreName) {
-        setIsLoading(false)
-        return
-      }
+    try {
+      const supabase = getSupabaseClient()
+      
+      const { data, error } = await supabase
+        .from("playlists")
+        .select("*")
+        .eq("is_public", true)
+        .eq("primary_genre", slug)
+        .order("created_at", { ascending: false })
 
-      try {
-        const data = await getPlaylistsByGenre(slug)
-        
-        // マウント状態をチェック
-        if (mountedRef.current) {
-          setPlaylists(data)
-          setHasFetched(true)
-        }
-      } catch (error) {
+      if (error) {
         console.error("Error fetching playlists:", error)
-        if (mountedRef.current) {
-          setPlaylists([])
-        }
-      } finally {
-        if (mountedRef.current) {
-          setIsLoading(false)
-        }
+        setPlaylists([])
+        setStatus("error")
+        return
       }
-    }
 
-    fetchPlaylists()
-
-    return () => {
-      mountedRef.current = false
+      setPlaylists(data || [])
+      setStatus("success")
+    } catch (error) {
+      console.error("Error fetching playlists:", error)
+      setPlaylists([])
+      setStatus("error")
     }
-  }, [slug, genreName, hasFetched])
+  }, [slug, genreName])
+
+  // コンポーネントマウント時とslug変更時にデータを取得
+  useEffect(() => {
+    // ブラウザ環境でのみ実行
+    if (typeof window !== "undefined") {
+      fetchPlaylists()
+    }
+  }, [fetchPlaylists])
 
   const handlePlayPlaylist = async (playlist: Playlist) => {
     try {
@@ -119,7 +119,7 @@ export default function GenrePage() {
     )
   }
 
-  if (isLoading) {
+  if (status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-accent" />
