@@ -2,15 +2,13 @@
 
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Heart, Play, Pause, Shuffle, Loader2, Clock } from "lucide-react"
+import { Heart, Play, Pause, Shuffle, Loader2, Music, Clock } from "lucide-react"
+import { getAllSongs } from "@/lib/api/songs"
+import { usePlayerStore } from "@/store/player-store"
 import { useAuth } from "@/lib/auth/context"
 import { getSupabaseClient } from "@/lib/supabase/client"
-import { usePlayerStore } from "@/store/player-store"
-import { Sidebar } from "@/components/sidebar"
-import { MusicPlayer } from "@/components/music-player"
 import type { Song } from "@/types/database"
 import { cn } from "@/lib/utils"
-import Link from "next/link"
 
 // Format duration from seconds to mm:ss
 function formatDuration(seconds: number | null): string {
@@ -30,54 +28,57 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled
 }
 
-function FavoriteSongList() {
+export function SongList() {
   const [songs, setSongs] = useState<Song[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [removingId, setRemovingId] = useState<string | null>(null)
+  const [favorites, setFavorites] = useState<Set<string>>(new Set())
+  const [loadingFavorite, setLoadingFavorite] = useState<string | null>(null)
   
-  const { user, isLoading: authLoading } = useAuth()
-  const { currentSong, isPlaying, playSong, toggle } = usePlayerStore()
+  const { user } = useAuth()
+  const { currentSong, isPlaying, playSong, toggle, queue } = usePlayerStore()
 
-  // Fetch favorite songs
+  // Fetch all songs on mount
   useEffect(() => {
-    async function fetchFavorites() {
-      if (authLoading) return
-      if (!user) {
-        setIsLoading(false)
-        return
-      }
-
+    async function fetchSongs() {
       try {
         setIsLoading(true)
-        const supabase = getSupabaseClient()
-        const { data, error } = await supabase
-          .from("user_favorites")
-          .select(`
-            song_id,
-            songs (*)
-          `)
-          .eq("user_id", user.id)
-          .not("song_id", "is", null)
-
-        if (error) {
-          console.error("Error fetching favorites:", error)
-          setSongs([])
-        } else {
-          const favSongs = (data || [])
-            .map((item: { songs: unknown }) => item.songs as Song | null)
-            .filter((s: Song | null): s is Song => s !== null)
-          setSongs(favSongs)
-        }
+        const data = await getAllSongs()
+        setSongs(data)
       } catch (error) {
-        console.error("Error fetching favorites:", error)
+        console.error("Error fetching songs:", error)
         setSongs([])
       } finally {
         setIsLoading(false)
       }
     }
+    
+    fetchSongs()
+  }, [])
+
+  // Fetch user favorites
+  useEffect(() => {
+    async function fetchFavorites() {
+      if (!user) return
+      
+      try {
+        const supabase = getSupabaseClient()
+        const { data, error } = await supabase
+          .from("user_favorites")
+          .select("song_id")
+          .eq("user_id", user.id)
+          .not("song_id", "is", null)
+
+        if (!error && data) {
+          const favSet = new Set(data.map((f: { song_id: string | null }) => f.song_id).filter(Boolean) as string[])
+          setFavorites(favSet)
+        }
+      } catch (error) {
+        console.error("Error fetching favorites:", error)
+      }
+    }
 
     fetchFavorites()
-  }, [user, authLoading])
+  }, [user])
 
   const handlePlayAll = () => {
     if (songs.length === 0) return
@@ -93,56 +94,65 @@ function FavoriteSongList() {
     }
   }
 
-  const removeFavorite = async (songId: string, e: React.MouseEvent) => {
+  const toggleFavorite = async (songId: string, e: React.MouseEvent) => {
     e.stopPropagation()
     if (!user) return
 
-    setRemovingId(songId)
+    setLoadingFavorite(songId)
     try {
       const supabase = getSupabaseClient()
-      await supabase
-        .from("user_favorites")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("song_id", songId)
+      const isFavorite = favorites.has(songId)
 
-      setSongs((prev) => prev.filter((s) => s.id !== songId))
+      if (isFavorite) {
+        await supabase
+          .from("user_favorites")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("song_id", songId)
+        
+        setFavorites((prev) => {
+          const next = new Set(prev)
+          next.delete(songId)
+          return next
+        })
+      } else {
+        await supabase
+          .from("user_favorites")
+          .insert({ user_id: user.id, song_id: songId })
+        
+        setFavorites((prev) => new Set(prev).add(songId))
+      }
     } catch (error) {
-      console.error("Error removing favorite:", error)
+      console.error("Error toggling favorite:", error)
     } finally {
-      setRemovingId(null)
+      setLoadingFavorite(null)
     }
   }
 
-  if (authLoading || isLoading) {
+  if (isLoading) {
     return (
       <div className="p-8">
         <div className="mb-8 flex items-center gap-6">
-          <div className="flex h-48 w-48 items-center justify-center rounded-lg bg-gradient-to-br from-pink-500/50 to-rose-500/50">
-            <Heart className="h-20 w-20 text-foreground/60" />
+          <div className="flex h-48 w-48 items-center justify-center rounded-lg bg-gradient-to-br from-accent/50 to-primary/50">
+            <Music className="h-20 w-20 text-foreground/60" />
           </div>
           <div>
             <p className="text-sm font-medium uppercase text-muted-foreground">プレイリスト</p>
-            <h1 className="mt-2 text-4xl font-bold tracking-tight">お気に入り</h1>
+            <h1 className="mt-2 text-4xl font-bold tracking-tight">すべての曲</h1>
             <div className="mt-4 h-4 w-32 animate-pulse rounded bg-muted" />
           </div>
         </div>
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-accent" />
+        <div className="space-y-2">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="flex items-center gap-4 rounded-md p-3">
+              <div className="h-12 w-12 animate-pulse rounded bg-muted" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-48 animate-pulse rounded bg-muted" />
+                <div className="h-3 w-32 animate-pulse rounded bg-muted" />
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return (
-      <div className="flex min-h-full flex-col items-center justify-center gap-4 p-8">
-        <Heart className="h-16 w-16 text-muted-foreground" />
-        <h1 className="text-2xl font-bold">お気に入り</h1>
-        <p className="text-muted-foreground">お気に入りを表示するにはログインが必要です</p>
-        <Link href="/login">
-          <Button>ログイン</Button>
-        </Link>
       </div>
     )
   }
@@ -151,14 +161,14 @@ function FavoriteSongList() {
     <div className="p-8">
       {/* Header */}
       <div className="mb-8 flex items-center gap-6">
-        <div className="flex h-48 w-48 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-pink-500/60 to-rose-500/60 shadow-xl">
-          <Heart className="h-20 w-20 text-foreground fill-current" />
+        <div className="flex h-48 w-48 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-accent/60 to-primary/60 shadow-xl">
+          <Music className="h-20 w-20 text-foreground" />
         </div>
         <div>
           <p className="text-sm font-medium uppercase text-muted-foreground">プレイリスト</p>
-          <h1 className="mt-2 text-4xl font-bold tracking-tight">お気に入り</h1>
+          <h1 className="mt-2 text-4xl font-bold tracking-tight">すべての曲</h1>
           <p className="mt-2 text-muted-foreground">
-            お気に入りに追加した曲
+            BizSound Stock の全楽曲ライブラリ
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
             {songs.length} 曲
@@ -167,32 +177,28 @@ function FavoriteSongList() {
       </div>
 
       {/* Play All Button */}
-      {songs.length > 0 && (
-        <div className="mb-6 flex items-center gap-4">
-          <Button
-            size="lg"
-            onClick={handlePlayAll}
-            className="gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
-          >
-            <Shuffle className="h-5 w-5" />
-            シャッフル再生
-          </Button>
-        </div>
-      )}
+      <div className="mb-6 flex items-center gap-4">
+        <Button
+          size="lg"
+          onClick={handlePlayAll}
+          disabled={songs.length === 0}
+          className="gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
+        >
+          <Shuffle className="h-5 w-5" />
+          シャッフル再生
+        </Button>
+      </div>
 
       {/* Song List */}
       {songs.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <Heart className="h-16 w-16 text-muted-foreground/50" />
+          <Music className="h-16 w-16 text-muted-foreground/50" />
           <p className="mt-4 text-lg text-muted-foreground">
-            お気に入りの曲がありません
+            楽曲がありません
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
-            ホームで曲のハートアイコンをクリックして追加してください
+            管理者が楽曲を追加すると表示されます
           </p>
-          <Link href="/" className="mt-4">
-            <Button variant="outline">ホームに戻る</Button>
-          </Link>
         </div>
       ) : (
         <div className="space-y-1">
@@ -257,18 +263,23 @@ function FavoriteSongList() {
                   {formatDuration(song.duration)}
                 </span>
 
-                {/* Remove Favorite Button */}
+                {/* Favorite Button */}
                 <Button
                   size="icon"
                   variant="ghost"
-                  onClick={(e) => removeFavorite(song.id, e)}
-                  disabled={removingId === song.id}
-                  className="h-8 w-8 text-accent"
+                  onClick={(e) => toggleFavorite(song.id, e)}
+                  disabled={!user || loadingFavorite === song.id}
+                  className={cn(
+                    "h-8 w-8",
+                    favorites.has(song.id)
+                      ? "text-accent"
+                      : "text-muted-foreground opacity-0 group-hover:opacity-100"
+                  )}
                 >
-                  {removingId === song.id ? (
+                  {loadingFavorite === song.id ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Heart className="h-4 w-4 fill-current" />
+                    <Heart className={cn("h-4 w-4", favorites.has(song.id) && "fill-current")} />
                   )}
                 </Button>
               </div>
@@ -276,20 +287,6 @@ function FavoriteSongList() {
           })}
         </div>
       )}
-    </div>
-  )
-}
-
-export default function FavoritesPage() {
-  return (
-    <div className="flex h-screen flex-col">
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto pt-14 md:pt-0">
-          <FavoriteSongList />
-        </main>
-      </div>
-      <MusicPlayer />
     </div>
   )
 }

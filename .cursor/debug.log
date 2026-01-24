@@ -1,0 +1,5 @@
+{"location":"category/[slug]/page.tsx:useEffectStart","message":"useEffect triggered","data":{"slug":"cafe"},"timestamp":1769264023418,"sessionId":"debug-session","hypothesisId":"H2"}
+{"location":"category/[slug]/page.tsx:fetchPlaylists","message":"fetchPlaylists called","data":{"slug":"cafe","currentCategory":"カフェ"},"timestamp":1769264023418,"sessionId":"debug-session","hypothesisId":"H1"}
+{"location":"category/[slug]/page.tsx:beforeQuery","message":"Before Supabase query","data":{"slug":"cafe","businessType":"cafe"},"timestamp":1769264023418,"sessionId":"debug-session","hypothesisId":"H2"}
+{"location":"category/[slug]/page.tsx:afterQuery","message":"After Supabase query","data":{"slug":"cafe","dataCount":4,"isMounted":true},"timestamp":1769264024529,"sessionId":"debug-session","hypothesisId":"H3"}
+{"location":"category/[slug]/page.tsx:setSuccess","message":"Setting status to success","data":{"slug":"cafe","playlistCount":4},"timestamp":1769264024529,"sessionId":"debug-session","hypothesisId":"H3"}
