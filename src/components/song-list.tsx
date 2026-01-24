@@ -39,20 +39,39 @@ export function SongList() {
 
   // Fetch all songs on mount
   useEffect(() => {
+    let isMounted = true
+    
+    // タイムアウト: 10秒以上かかったらローディングを終了
+    const timeout = setTimeout(() => {
+      if (isMounted) {
+        setIsLoading(false)
+      }
+    }, 10000)
+
     async function fetchSongs() {
       try {
-        setIsLoading(true)
         const data = await getAllSongs()
-        setSongs(data)
+        if (isMounted) {
+          setSongs(data)
+        }
       } catch (error) {
         console.error("Error fetching songs:", error)
-        setSongs([])
+        if (isMounted) {
+          setSongs([])
+        }
       } finally {
-        setIsLoading(false)
+        if (isMounted) {
+          setIsLoading(false)
+        }
       }
     }
     
     fetchSongs()
+    
+    return () => {
+      isMounted = false
+      clearTimeout(timeout)
+    }
   }, [])
 
   // Fetch user favorites

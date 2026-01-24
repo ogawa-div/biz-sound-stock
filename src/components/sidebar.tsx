@@ -106,14 +106,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 
       {/* User Section */}
       <div className="border-t border-border p-4">
-        {isLoading ? (
-          <div className="flex items-center gap-3 px-3 py-2">
-            <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
-            <div className="flex-1">
-              <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-            </div>
-          </div>
-        ) : user ? (
+        {user ? (
           <div className="space-y-3">
             <div className="flex items-center gap-3 px-3 py-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-accent-foreground">
@@ -139,12 +132,33 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
             </Button>
           </div>
         ) : (
-          <Link href="/login" onClick={onClose}>
-            <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
-              <LogIn className="mr-2 h-4 w-4" />
-              ログイン
-            </Button>
-          </Link>
+          <div className="space-y-3">
+            {/* ゲストユーザー表示 */}
+            <div className="flex items-center gap-3 px-3 py-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <User className="h-4 w-4" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-muted-foreground">ゲスト</p>
+                <p className="text-xs text-muted-foreground">ログインで全機能を利用</p>
+              </div>
+            </div>
+            {/* ログインボタン */}
+            <Link href="/login" onClick={onClose}>
+              <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
+                <LogIn className="mr-2 h-4 w-4" />
+                ログイン
+              </Button>
+            </Link>
+            {/* 新規登録リンク */}
+            <Link 
+              href="/signup" 
+              onClick={onClose}
+              className="block text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              アカウントをお持ちでない方は<span className="text-accent underline">新規登録</span>
+            </Link>
+          </div>
         )}
       </div>
     </div>

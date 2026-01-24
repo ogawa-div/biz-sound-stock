@@ -40,15 +40,25 @@ function FavoriteSongList() {
 
   // Fetch favorite songs
   useEffect(() => {
-    async function fetchFavorites() {
-      if (authLoading) return
-      if (!user) {
+    let isMounted = true
+    
+    // タイムアウト: 5秒以上 authLoading が続いたらローディングを終了
+    const timeout = setTimeout(() => {
+      if (isMounted && isLoading) {
         setIsLoading(false)
+      }
+    }, 5000)
+
+    async function fetchFavorites() {
+      // 未ログインの場合は即座にローディング終了
+      if (!user) {
+        if (isMounted) {
+          setIsLoading(false)
+        }
         return
       }
 
       try {
-        setIsLoading(true)
         const supabase = getSupabaseClient()
         const { data, error } = await supabase
           .from("user_favorites")
@@ -58,6 +68,8 @@ function FavoriteSongList() {
           `)
           .eq("user_id", user.id)
           .not("song_id", "is", null)
+
+        if (!isMounted) return
 
         if (error) {
           console.error("Error fetching favorites:", error)
@@ -70,14 +82,37 @@ function FavoriteSongList() {
         }
       } catch (error) {
         console.error("Error fetching favorites:", error)
-        setSongs([])
+        if (isMounted) {
+          setSongs([])
+        }
       } finally {
-        setIsLoading(false)
+        if (isMounted) {
+          setIsLoading(false)
+        }
       }
     }
 
-    fetchFavorites()
-  }, [user, authLoading])
+    // authLoading が完了したら、または 2秒後に実行
+    if (!authLoading) {
+      fetchFavorites()
+    } else {
+      const authTimeout = setTimeout(() => {
+        if (isMounted) {
+          fetchFavorites()
+        }
+      }, 2000)
+      return () => {
+        isMounted = false
+        clearTimeout(timeout)
+        clearTimeout(authTimeout)
+      }
+    }
+
+    return () => {
+      isMounted = false
+      clearTimeout(timeout)
+    }
+  }, [user, authLoading, isLoading])
 
   const handlePlayAll = () => {
     if (songs.length === 0) return
@@ -114,7 +149,8 @@ function FavoriteSongList() {
     }
   }
 
-  if (authLoading || isLoading) {
+  // ローディング中（ただしタイムアウトで打ち切り）
+  if (isLoading) {
     return (
       <div className="p-8">
         <div className="mb-8 flex items-center gap-6">

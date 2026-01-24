@@ -6,7 +6,7 @@ import type { Song, MusicGenre, MusicMood } from "@/types/database";
 // ===========================================
 
 /**
- * Get all active songs
+ * Get all songs (シンプルに全件取得)
  */
 export async function getAllSongs(): Promise<Song[]> {
   const supabase = getSupabaseClient();
@@ -14,12 +14,12 @@ export async function getAllSongs(): Promise<Song[]> {
   const { data, error } = await supabase
     .from("songs")
     .select("*")
-    .eq("is_active", true)
     .order("created_at", { ascending: false });
   
   if (error) {
     console.error("Error fetching songs:", error);
-    throw error;
+    // エラー時は空配列を返す（throwしない）
+    return [];
   }
   
   return data || [];
