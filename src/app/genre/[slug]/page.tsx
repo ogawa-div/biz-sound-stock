@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -35,48 +35,58 @@ export default function GenrePage() {
   
   const setPlaylist = usePlayerStore((state) => state.setPlaylist)
 
-  // データ取得関数を useCallback で定義
-  const fetchPlaylists = useCallback(async () => {
-    if (!genreName) {
-      setStatus("success")
-      return
-    }
+  // slug が変わったときだけデータを取得
+  useEffect(() => {
+    let isMounted = true
 
-    setStatus("loading")
-
-    try {
-      const supabase = getSupabaseClient()
+    async function fetchPlaylists() {
+      const currentGenreName = genreMap[slug]
       
-      const { data, error } = await supabase
-        .from("playlists")
-        .select("*")
-        .eq("is_public", true)
-        .eq("primary_genre", slug)
-        .order("created_at", { ascending: false })
-
-      if (error) {
-        console.error("Error fetching playlists:", error)
-        setPlaylists([])
-        setStatus("error")
+      if (!currentGenreName) {
+        setStatus("success")
         return
       }
 
-      setPlaylists(data || [])
-      setStatus("success")
-    } catch (error) {
-      console.error("Error fetching playlists:", error)
-      setPlaylists([])
-      setStatus("error")
-    }
-  }, [slug, genreName])
+      try {
+        const supabase = getSupabaseClient()
+        
+        const { data, error } = await supabase
+          .from("playlists")
+          .select("*")
+          .eq("is_public", true)
+          .eq("primary_genre", slug)
+          .order("created_at", { ascending: false })
 
-  // コンポーネントマウント時とslug変更時にデータを取得
-  useEffect(() => {
+        if (!isMounted) return
+
+        if (error) {
+          console.error("Error fetching playlists:", error)
+          setPlaylists([])
+          setStatus("error")
+          return
+        }
+
+        setPlaylists(data || [])
+        setStatus("success")
+      } catch (error) {
+        console.error("Error fetching playlists:", error)
+        if (isMounted) {
+          setPlaylists([])
+          setStatus("error")
+        }
+      }
+    }
+
     // ブラウザ環境でのみ実行
     if (typeof window !== "undefined") {
+      setStatus("loading")
       fetchPlaylists()
     }
-  }, [fetchPlaylists])
+
+    return () => {
+      isMounted = false
+    }
+  }, [slug]) // slug のみを依存配列に
 
   const handlePlayPlaylist = async (playlist: Playlist) => {
     try {
