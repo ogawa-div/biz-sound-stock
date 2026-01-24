@@ -27,10 +27,20 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname()
   const { user, profile, isLoading, isAdmin, signOut } = useAuth()
 
-  const handleSignOut = async () => {
-    await signOut()
-    onClose?.()
-    router.push("/login")
+  const handleSignOut = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation() // 親要素へのイベント伝播を止める
+    
+    try {
+      await signOut()
+      onClose?.()
+      // 強制的にリダイレクト
+      window.location.href = "/login"
+    } catch (error) {
+      console.error("Error signing out:", error)
+      // エラーが発生しても強制的にリダイレクト
+      window.location.href = "/login"
+    }
   }
 
   const handleMenuClick = (item: MenuItem) => {
@@ -125,7 +135,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
               variant="outline"
               size="sm"
               className="w-full"
-              onClick={handleSignOut}
+              onClick={(e) => handleSignOut(e)}
             >
               <LogOut className="mr-2 h-4 w-4" />
               ログアウト

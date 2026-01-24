@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
+import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Heart, Play, Pause, Shuffle, Loader2, Music, Clock } from "lucide-react"
 import { getAllSongs } from "@/lib/api/songs"
@@ -33,13 +34,30 @@ export function SongList() {
   const [isLoading, setIsLoading] = useState(true)
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
   const [loadingFavorite, setLoadingFavorite] = useState<string | null>(null)
+  const [fetchKey, setFetchKey] = useState(0) // 強制再取得用
   
+  const pathname = usePathname()
   const { user } = useAuth()
-  const { currentSong, isPlaying, playSong, toggle, queue } = usePlayerStore()
+  const { currentSong, isPlaying, playSong, toggle } = usePlayerStore()
 
-  // Fetch all songs on mount
+  // 強制的に曲を再取得する関数
+  const refetchSongs = useCallback(() => {
+    setFetchKey((prev) => prev + 1)
+  }, [])
+
+  // ホーム画面に戻った時に曲を再取得
+  useEffect(() => {
+    if (pathname === "/") {
+      refetchSongs()
+    }
+  }, [pathname, refetchSongs])
+
+  // Fetch all songs on mount and when fetchKey changes
   useEffect(() => {
     let isMounted = true
+    
+    // 最初にローディング状態をセット
+    setIsLoading(true)
     
     // タイムアウト: 10秒以上かかったらローディングを終了
     const timeout = setTimeout(() => {
@@ -72,7 +90,7 @@ export function SongList() {
       isMounted = false
       clearTimeout(timeout)
     }
-  }, [])
+  }, [fetchKey])
 
   // Fetch user favorites
   useEffect(() => {
