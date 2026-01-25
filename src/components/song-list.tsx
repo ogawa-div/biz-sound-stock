@@ -6,7 +6,6 @@ import { Heart, Play, Pause, Shuffle, Loader2, Music, Clock } from "lucide-react
 import { usePlayerStore } from "@/store/player-store"
 import { useSongsStore } from "@/store/songs-store"
 import { useAuth } from "@/lib/auth/context"
-import { createBrowserClient } from "@supabase/ssr"
 import type { Song } from "@/types/database"
 import { cn } from "@/lib/utils"
 
@@ -28,12 +27,54 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled
 }
 
-// Supabaseクライアント
-function getSupabase() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+// 直接fetch APIを使用
+async function fetchFavoritesFromSupabase(userId: string): Promise<string[]> {
+  const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/user_favorites?select=song_id&user_id=eq.${userId}&song_id=not.is.null`;
+  const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  const response = await fetch(url, {
+    headers: {
+      "apikey": apiKey || "",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+  });
+
+  if (!response.ok) return [];
+  const data = await response.json();
+  return data.map((f: { song_id: string }) => f.song_id);
+}
+
+async function addFavorite(userId: string, songId: string): Promise<boolean> {
+  const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/user_favorites`;
+  const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "apikey": apiKey || "",
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "Prefer": "return=minimal",
+    },
+    body: JSON.stringify({ user_id: userId, song_id: songId }),
+  });
+
+  return response.ok;
+}
+
+async function removeFavorite(userId: string, songId: string): Promise<boolean> {
+  const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/user_favorites?user_id=eq.${userId}&song_id=eq.${songId}`;
+  const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: {
+      "apikey": apiKey || "",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+  });
+
+  return response.ok;
 }
 
 export function SongList() {
@@ -58,34 +99,9 @@ export function SongList() {
       return
     }
     
-    let isMounted = true
-    const userId = user.id
-    
-    async function fetchFavorites() {
-      try {
-        const supabase = getSupabase()
-        const { data, error } = await supabase
-          .from("user_favorites")
-          .select("song_id")
-          .eq("user_id", userId)
-          .not("song_id", "is", null)
-
-        if (!error && data && isMounted) {
-          const favSet = new Set(
-            data.map((f: { song_id: string | null }) => f.song_id).filter(Boolean) as string[]
-          )
-          setFavorites(favSet)
-        }
-      } catch (error) {
-        console.error("Error fetching favorites:", error)
-      }
-    }
-
-    fetchFavorites()
-    
-    return () => {
-      isMounted = false
-    }
+    fetchFavoritesFromSupabase(user.id)
+      .then((favIds) => setFavorites(new Set(favIds)))
+      .catch((err) => console.error("Error fetching favorites:", err))
   }, [user])
 
   const handlePlayAll = () => {
@@ -108,27 +124,22 @@ export function SongList() {
 
     setLoadingFavorite(songId)
     try {
-      const supabase = getSupabase()
       const isFavorite = favorites.has(songId)
 
       if (isFavorite) {
-        await supabase
-          .from("user_favorites")
-          .delete()
-          .eq("user_id", user.id)
-          .eq("song_id", songId)
-        
-        setFavorites((prev) => {
-          const next = new Set(prev)
-          next.delete(songId)
-          return next
-        })
+        const success = await removeFavorite(user.id, songId)
+        if (success) {
+          setFavorites((prev) => {
+            const next = new Set(prev)
+            next.delete(songId)
+            return next
+          })
+        }
       } else {
-        await supabase
-          .from("user_favorites")
-          .insert({ user_id: user.id, song_id: songId })
-        
-        setFavorites((prev) => new Set(prev).add(songId))
+        const success = await addFavorite(user.id, songId)
+        if (success) {
+          setFavorites((prev) => new Set(prev).add(songId))
+        }
       }
     } catch (error) {
       console.error("Error toggling favorite:", error)

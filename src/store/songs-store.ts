@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { createBrowserClient } from "@supabase/ssr";
 import type { Song } from "@/types/database";
 
 interface SongsState {
@@ -11,12 +10,24 @@ interface SongsState {
   reset: () => void;
 }
 
-// 独立したSupabaseクライアント
-function getSupabase() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+// 直接fetch APIを使用（Supabaseクライアントに問題があるため）
+async function fetchSongsFromSupabase(): Promise<Song[]> {
+  const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/songs?select=*&order=created_at.desc`;
+  const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  const response = await fetch(url, {
+    headers: {
+      "apikey": apiKey || "",
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  return response.json();
 }
 
 export const useSongsStore = create<SongsState>((set, get) => ({
@@ -38,22 +49,17 @@ export const useSongsStore = create<SongsState>((set, get) => ({
     console.log("[SongsStore] Fetching songs...");
 
     try {
-      const supabase = getSupabase();
-      const { data, error } = await supabase
-        .from("songs")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("[SongsStore] Error:", error);
-        set({ songs: [], isLoading: false, hasFetched: true, error: error.message });
-      } else {
-        console.log("[SongsStore] Fetched:", data?.length, "songs");
-        set({ songs: data || [], isLoading: false, hasFetched: true, error: null });
-      }
+      const data = await fetchSongsFromSupabase();
+      console.log("[SongsStore] Fetched:", data.length, "songs");
+      set({ songs: data, isLoading: false, hasFetched: true, error: null });
     } catch (error) {
-      console.error("[SongsStore] Catch error:", error);
-      set({ songs: [], isLoading: false, hasFetched: true, error: "Failed to fetch songs" });
+      console.error("[SongsStore] Error:", error);
+      set({ 
+        songs: [], 
+        isLoading: false, 
+        hasFetched: true, 
+        error: error instanceof Error ? error.message : "Failed to fetch songs" 
+      });
     }
   },
 
