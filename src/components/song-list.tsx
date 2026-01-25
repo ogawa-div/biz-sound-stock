@@ -1,9 +1,10 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Heart, Play, Pause, Shuffle, Loader2, Music, Clock } from "lucide-react"
 import { usePlayerStore } from "@/store/player-store"
+import { useSongsStore } from "@/store/songs-store"
 import { useAuth } from "@/lib/auth/context"
 import { createBrowserClient } from "@supabase/ssr"
 import type { Song } from "@/types/database"
@@ -27,8 +28,8 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled
 }
 
-// 独立したSupabaseクライアントを作成（認証状態に依存しない）
-function getAnonSupabase() {
+// Supabaseクライアント
+function getSupabase() {
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -36,79 +37,19 @@ function getAnonSupabase() {
 }
 
 export function SongList() {
-  const [songs, setSongs] = useState<Song[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
   const [loadingFavorite, setLoadingFavorite] = useState<string | null>(null)
   
-  // 曲が一度取得されたかどうかを追跡
-  const hasFetchedRef = useRef(false)
-  const songsRef = useRef<Song[]>([])
+  // グローバルストアから曲を取得
+  const { songs, isLoading, fetchSongs } = useSongsStore()
   
   const { user } = useAuth()
   const { currentSong, isPlaying, playSong, toggle } = usePlayerStore()
 
-  // 曲を取得 - 一度だけ実行し、結果をキャッシュ
+  // コンポーネントマウント時に曲を取得
   useEffect(() => {
-    // 既に取得済みなら再取得しない
-    if (hasFetchedRef.current && songsRef.current.length > 0) {
-      setSongs(songsRef.current)
-      setIsLoading(false)
-      return
-    }
-    
-    let isMounted = true
-    
-    async function fetchSongs() {
-      console.log("[SongList] Fetching songs...")
-      try {
-        // 認証状態に依存しない独立したクライアントを使用
-        const supabase = getAnonSupabase()
-        const { data, error } = await supabase
-          .from("songs")
-          .select("*")
-          .order("created_at", { ascending: false })
-        
-        // 詳細なログ出力
-        console.log("[SongList] Raw data:", data)
-        console.log("[SongList] Error:", error)
-        console.log("[SongList] Data length:", data?.length)
-        
-        if (error) {
-          console.error("[SongList] Supabase Error:", error.message, error.code)
-          if (isMounted) {
-            setSongs([])
-            setIsLoading(false)
-          }
-        } else {
-          const songsData = data || []
-          console.log("[SongList] Setting songs:", songsData.length, "items")
-          
-          // キャッシュに保存
-          songsRef.current = songsData
-          hasFetchedRef.current = true
-          
-          if (isMounted) {
-            console.log("[SongList] Updating state with", songsData.length, "songs")
-            setSongs(songsData)
-            setIsLoading(false)
-          }
-        }
-      } catch (error) {
-        console.error("[SongList] Catch error:", error)
-        if (isMounted) {
-          setSongs([])
-          setIsLoading(false)
-        }
-      }
-    }
-    
     fetchSongs()
-    
-    return () => {
-      isMounted = false
-    }
-  }, [])
+  }, [fetchSongs])
 
   // お気に入りを取得（ログインユーザーのみ）
   useEffect(() => {
@@ -122,7 +63,7 @@ export function SongList() {
     
     async function fetchFavorites() {
       try {
-        const supabase = getAnonSupabase()
+        const supabase = getSupabase()
         const { data, error } = await supabase
           .from("user_favorites")
           .select("song_id")
@@ -167,7 +108,7 @@ export function SongList() {
 
     setLoadingFavorite(songId)
     try {
-      const supabase = getAnonSupabase()
+      const supabase = getSupabase()
       const isFavorite = favorites.has(songId)
 
       if (isFavorite) {
