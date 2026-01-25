@@ -6,7 +6,13 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Music, Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react"
-import { getSupabaseClient } from "@/lib/supabase/client"
+import { createClient } from "@supabase/supabase-js"
+
+// Supabaseクライアントを直接作成
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 export default function LoginPage() {
   const router = useRouter()
@@ -22,7 +28,6 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const supabase = getSupabaseClient()
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -37,8 +42,8 @@ export default function LoginPage() {
         return
       }
 
-      router.push("/")
-      router.refresh()
+      // ログイン成功後、ページをリロードしてAuthContextを更新
+      window.location.href = "/"
     } catch {
       setError("ログインに失敗しました。もう一度お試しください。")
     } finally {

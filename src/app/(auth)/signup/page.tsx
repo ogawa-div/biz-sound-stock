@@ -6,8 +6,14 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Music, Loader2, Mail, Lock, Eye, EyeOff, User, Store } from "lucide-react"
-import { getSupabaseClient } from "@/lib/supabase/client"
+import { createClient } from "@supabase/supabase-js"
 import type { BusinessType } from "@/types/database"
+
+// Supabaseクライアントを直接作成
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 const businessTypes: { value: BusinessType; label: string; icon: string }[] = [
   { value: "cafe", label: "カフェ", icon: "☕" },
@@ -56,8 +62,6 @@ export default function SignupPage() {
     setIsLoading(true)
 
     try {
-      const supabase = getSupabaseClient()
-
       // Create user account
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
@@ -80,16 +84,29 @@ export default function SignupPage() {
         return
       }
 
-      // Update profile with business info
+      // Update profile with business info (using fetch API)
       if (data.user) {
-        await supabase.from("profiles").update({
-          display_name: displayName,
-          business_type: businessType,
-          business_name: businessName,
-        }).eq("id", data.user.id)
+        const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        await fetch(
+          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${data.user.id}`,
+          {
+            method: "PATCH",
+            headers: {
+              "apikey": apiKey || "",
+              "Authorization": `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+              "Prefer": "return=minimal",
+            },
+            body: JSON.stringify({
+              display_name: displayName,
+              business_type: businessType,
+              business_name: businessName,
+            }),
+          }
+        )
       }
 
-      // Redirect to success page or home
+      // Redirect to success page
       router.push("/signup/success")
     } catch {
       setError("登録に失敗しました。もう一度お試しください。")
