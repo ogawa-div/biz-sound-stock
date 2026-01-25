@@ -1,10 +1,8 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
-import { usePathname } from "next/navigation"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Heart, Play, Pause, Shuffle, Loader2, Music, Clock } from "lucide-react"
-import { getAllSongs } from "@/lib/api/songs"
 import { usePlayerStore } from "@/store/player-store"
 import { useAuth } from "@/lib/auth/context"
 import { getSupabaseClient } from "@/lib/supabase/client"
@@ -34,53 +32,34 @@ export function SongList() {
   const [isLoading, setIsLoading] = useState(true)
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
   const [loadingFavorite, setLoadingFavorite] = useState<string | null>(null)
-  const [fetchKey, setFetchKey] = useState(0) // 強制再取得用
   
-  const pathname = usePathname()
   const { user } = useAuth()
   const { currentSong, isPlaying, playSong, toggle } = usePlayerStore()
 
-  // 強制的に曲を再取得する関数
-  const refetchSongs = useCallback(() => {
-    setFetchKey((prev) => prev + 1)
-  }, [])
-
-  // ホーム画面に戻った時に曲を再取得
-  useEffect(() => {
-    if (pathname === "/") {
-      refetchSongs()
-    }
-  }, [pathname, refetchSongs])
-
-  // Fetch all songs on mount and when fetchKey changes
+  // 曲を取得 - ユーザーのログイン状態に関係なく即座に実行
   useEffect(() => {
     let isMounted = true
     
-    // 最初にローディング状態をセット
-    setIsLoading(true)
-    
-    // タイムアウト: 10秒以上かかったらローディングを終了
-    const timeout = setTimeout(() => {
-      if (isMounted) {
-        setIsLoading(false)
-      }
-    }, 10000)
-
     async function fetchSongs() {
       try {
-        const data = await getAllSongs()
-        if (isMounted) {
-          setSongs(data)
+        const supabase = getSupabaseClient()
+        const { data, error } = await supabase
+          .from("songs")
+          .select("*")
+          .order("created_at", { ascending: false })
+        
+        if (error) {
+          console.error("Error fetching songs:", error)
+          if (isMounted) setSongs([])
+        } else {
+          if (isMounted) setSongs(data || [])
         }
       } catch (error) {
         console.error("Error fetching songs:", error)
-        if (isMounted) {
-          setSongs([])
-        }
+        if (isMounted) setSongs([])
       } finally {
-        if (isMounted) {
-          setIsLoading(false)
-        }
+        // 成功・失敗に関わらず必ずローディングを終了
+        if (isMounted) setIsLoading(false)
       }
     }
     
@@ -88,25 +67,32 @@ export function SongList() {
     
     return () => {
       isMounted = false
-      clearTimeout(timeout)
     }
-  }, [fetchKey])
+  }, []) // 依存配列を空にして、マウント時に1回だけ実行
 
-  // Fetch user favorites
+  // お気に入りを取得（ログインユーザーのみ）
   useEffect(() => {
+    if (!user) {
+      setFavorites(new Set())
+      return
+    }
+    
+    let isMounted = true
+    const userId = user.id // 変数にキャプチャしてnullチェックを満たす
+    
     async function fetchFavorites() {
-      if (!user) return
-      
       try {
         const supabase = getSupabaseClient()
         const { data, error } = await supabase
           .from("user_favorites")
           .select("song_id")
-          .eq("user_id", user.id)
+          .eq("user_id", userId)
           .not("song_id", "is", null)
 
-        if (!error && data) {
-          const favSet = new Set(data.map((f: { song_id: string | null }) => f.song_id).filter(Boolean) as string[])
+        if (!error && data && isMounted) {
+          const favSet = new Set(
+            data.map((f: { song_id: string | null }) => f.song_id).filter(Boolean) as string[]
+          )
           setFavorites(favSet)
         }
       } catch (error) {
@@ -115,6 +101,10 @@ export function SongList() {
     }
 
     fetchFavorites()
+    
+    return () => {
+      isMounted = false
+    }
   }, [user])
 
   const handlePlayAll = () => {
@@ -234,7 +224,7 @@ export function SongList() {
             楽曲がありません
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
-            管理者が楽曲を追加すると表示されます
+            楽曲はSupabaseダッシュボードから追加できます
           </p>
         </div>
       ) : (
