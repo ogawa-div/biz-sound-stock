@@ -69,21 +69,27 @@ export function SongList() {
           .select("*")
           .order("created_at", { ascending: false })
         
-        console.log("[SongList] Response:", { count: data?.length, error })
+        // 詳細なログ出力
+        console.log("[SongList] Raw data:", data)
+        console.log("[SongList] Error:", error)
+        console.log("[SongList] Data length:", data?.length)
         
         if (error) {
-          console.error("[SongList] Error:", error)
+          console.error("[SongList] Supabase Error:", error.message, error.code)
           if (isMounted) {
             setSongs([])
             setIsLoading(false)
           }
         } else {
           const songsData = data || []
+          console.log("[SongList] Setting songs:", songsData.length, "items")
+          
           // キャッシュに保存
           songsRef.current = songsData
           hasFetchedRef.current = true
           
           if (isMounted) {
+            console.log("[SongList] Updating state with", songsData.length, "songs")
             setSongs(songsData)
             setIsLoading(false)
           }
