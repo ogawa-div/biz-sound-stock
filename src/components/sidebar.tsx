@@ -3,7 +3,7 @@
 import type React from "react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { Radio, Heart, LogIn, LogOut, Settings, User, Menu, X } from "lucide-react"
+import { Radio, Heart, LogIn, LogOut, User, Menu, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth/context"
@@ -25,20 +25,18 @@ const menuItems: MenuItem[] = [
 function SidebarContent({ onClose }: { onClose?: () => void }) {
   const router = useRouter()
   const pathname = usePathname()
-  const { user, profile, isLoading, isAdmin, signOut } = useAuth()
+  const { user, profile, signOut } = useAuth()
 
   const handleSignOut = async (e: React.MouseEvent) => {
     e.preventDefault()
-    e.stopPropagation() // 親要素へのイベント伝播を止める
+    e.stopPropagation()
     
     try {
       await signOut()
       onClose?.()
-      // 強制的にリダイレクト
       window.location.href = "/login"
     } catch (error) {
       console.error("Error signing out:", error)
-      // エラーが発生しても強制的にリダイレクト
       window.location.href = "/login"
     }
   }
@@ -92,25 +90,6 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
               })}
             </div>
           </div>
-
-          {/* Admin Link */}
-          {isAdmin && (
-            <div>
-              <h2 className="mb-3 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                管理
-              </h2>
-              <div className="space-y-1">
-                <Link
-                  href="/admin"
-                  onClick={onClose}
-                  className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-accent hover:bg-secondary transition-colors"
-                >
-                  <Settings className="h-5 w-5" />
-                  管理者ダッシュボード
-                </Link>
-              </div>
-            </div>
-          )}
         </div>
       </nav>
 
@@ -183,7 +162,7 @@ export function MobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
         <Menu className="h-5 w-5" />
       </button>
       <h1 className="text-lg font-bold text-foreground">BizSound Stock</h1>
-      <div className="w-9" /> {/* Spacer for centering */}
+      <div className="w-9" />
     </header>
   )
 }
@@ -198,7 +177,6 @@ function MobileDrawer({
   onClose: () => void
   children: React.ReactNode 
 }) {
-  // Prevent body scroll when drawer is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden"
@@ -214,12 +192,10 @@ function MobileDrawer({
 
   return (
     <div className="fixed inset-0 z-50 md:hidden">
-      {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
-      {/* Drawer */}
       <aside className="absolute left-0 top-0 h-full w-72 animate-in slide-in-from-left duration-300 bg-card shadow-xl">
         {children}
       </aside>
@@ -236,15 +212,10 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile header */}
       <MobileHeader onMenuClick={openMobileMenu} />
-      
-      {/* Mobile drawer */}
       <MobileDrawer isOpen={isMobileMenuOpen} onClose={closeMobileMenu}>
         <SidebarContent onClose={closeMobileMenu} />
       </MobileDrawer>
-
-      {/* Desktop sidebar */}
       <aside className="hidden w-64 border-r border-border bg-card md:block">
         <SidebarContent />
       </aside>
