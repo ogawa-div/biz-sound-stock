@@ -1,52 +1,64 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useRef } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Music, Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react"
 import { createClient } from "@supabase/supabase-js"
 
-// Supabaseクライアントを直接作成
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
 export default function LoginPage() {
-  const router = useRouter()
+  // SupabaseクライアントをuseRefで保持（再レンダリング時に再作成を防ぐ）
+  const supabaseRef = useRef(
+    createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+  )
+  
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
     setIsLoading(true)
 
+    // フォームから直接値を取得（より確実）
+    const formData = new FormData(e.currentTarget)
+    const emailValue = formData.get("email") as string || email
+    const passwordValue = formData.get("password") as string || password
+
+    console.log("[Login] Starting login for:", emailValue)
+
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const { data, error: authError } = await supabaseRef.current.auth.signInWithPassword({
+        email: emailValue,
+        password: passwordValue,
       })
 
-      if (error) {
-        if (error.message.includes("Invalid login credentials")) {
+      console.log("[Login] Response:", { data, error: authError })
+
+      if (authError) {
+        console.error("[Login] Auth error:", authError)
+        if (authError.message.includes("Invalid login credentials")) {
           setError("メールアドレスまたはパスワードが正しくありません")
         } else {
-          setError(error.message)
+          setError(authError.message)
         }
+        setIsLoading(false)
         return
       }
 
+      console.log("[Login] Success, redirecting...")
       // ログイン成功後、ページをリロードしてAuthContextを更新
       window.location.href = "/"
-    } catch {
+    } catch (err) {
+      console.error("[Login] Unexpected error:", err)
       setError("ログインに失敗しました。もう一度お試しください。")
-    } finally {
       setIsLoading(false)
     }
   }
@@ -89,6 +101,7 @@ export default function LoginPage() {
                   <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="email"
+                    name="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full rounded-lg border border-input bg-background py-3 pl-10 pr-4 text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
@@ -108,6 +121,7 @@ export default function LoginPage() {
                   <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type={showPassword ? "text" : "password"}
+                    name="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full rounded-lg border border-input bg-background py-3 pl-10 pr-12 text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
