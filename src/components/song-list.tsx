@@ -41,6 +41,7 @@ export function SongList() {
     let isMounted = true
     
     async function fetchSongs() {
+      console.log("[SongList] Fetching songs...")
       try {
         const supabase = getSupabaseClient()
         const { data, error } = await supabase
@@ -48,17 +49,20 @@ export function SongList() {
           .select("*")
           .order("created_at", { ascending: false })
         
+        console.log("[SongList] Response:", { data, error, count: data?.length })
+        
         if (error) {
-          console.error("Error fetching songs:", error)
+          console.error("[SongList] Error fetching songs:", error)
           if (isMounted) setSongs([])
         } else {
+          console.log("[SongList] Setting songs:", data?.length || 0, "items")
           if (isMounted) setSongs(data || [])
         }
       } catch (error) {
-        console.error("Error fetching songs:", error)
+        console.error("[SongList] Catch error:", error)
         if (isMounted) setSongs([])
       } finally {
-        // 成功・失敗に関わらず必ずローディングを終了
+        console.log("[SongList] Setting isLoading to false")
         if (isMounted) setIsLoading(false)
       }
     }
