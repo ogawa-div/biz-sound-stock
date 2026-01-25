@@ -11,7 +11,7 @@ interface SongsState {
 }
 
 // 直接fetch APIを使用（Supabaseクライアントに問題があるため）
-async function fetchSongsFromSupabase(): Promise<Song[]> {
+async function fetchSongsFromSupabase(signal?: AbortSignal): Promise<Song[]> {
   const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/songs?select=*&order=created_at.desc`;
   const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -21,6 +21,7 @@ async function fetchSongsFromSupabase(): Promise<Song[]> {
       "Authorization": `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
+    signal,
   });
 
   if (!response.ok) {
@@ -29,6 +30,9 @@ async function fetchSongsFromSupabase(): Promise<Song[]> {
 
   return response.json();
 }
+
+// 現在のAbortController（キャンセル用）
+let currentAbortController: AbortController | null = null;
 
 export const useSongsStore = create<SongsState>((set, get) => ({
   songs: [],
@@ -45,14 +49,25 @@ export const useSongsStore = create<SongsState>((set, get) => ({
       return;
     }
 
+    // 前のリクエストをキャンセル
+    if (currentAbortController) {
+      currentAbortController.abort();
+    }
+    currentAbortController = new AbortController();
+
     set({ isLoading: true, error: null });
     console.log("[SongsStore] Fetching songs...");
 
     try {
-      const data = await fetchSongsFromSupabase();
+      const data = await fetchSongsFromSupabase(currentAbortController.signal);
       console.log("[SongsStore] Fetched:", data.length, "songs");
       set({ songs: data, isLoading: false, hasFetched: true, error: null });
     } catch (error) {
+      // AbortErrorは無視（正常なキャンセル）
+      if (error instanceof Error && error.name === "AbortError") {
+        console.log("[SongsStore] Request aborted");
+        return;
+      }
       console.error("[SongsStore] Error:", error);
       set({ 
         songs: [], 
