@@ -94,10 +94,10 @@ export function MusicPlayer() {
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate font-semibold text-foreground">
-              {currentSong?.title || "曲を選択してください"}
+              {currentSong?.title || "Welcome to BizSound Stock"}
             </p>
             <p className="truncate text-sm text-muted-foreground">
-              {currentSong?.artist || currentPlaylist?.title || "プレイリストを選択"}
+              {currentSong?.artist || currentPlaylist?.title || "再生ボタンを押してBGMを開始"}
             </p>
           </div>
           <Button 

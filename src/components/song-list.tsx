@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Heart, Play, Pause, Shuffle, Loader2, Music, Clock } from "lucide-react"
+import { Heart, Play, Pause, Shuffle, Loader2, Music } from "lucide-react"
 import { usePlayerStore } from "@/store/player-store"
 import { useSongsStore } from "@/store/songs-store"
 import { useAuth } from "@/lib/auth/context"
@@ -156,8 +156,8 @@ export function SongList() {
             <Music className="h-20 w-20 text-foreground/60" />
           </div>
           <div>
-            <p className="text-sm font-medium uppercase text-muted-foreground">プレイリスト</p>
-            <h1 className="mt-2 text-4xl font-bold tracking-tight">すべての曲</h1>
+            <p className="text-sm font-medium uppercase tracking-widest text-accent">STATION</p>
+            <h1 className="mt-2 text-4xl font-bold tracking-tight">BizSound Radio</h1>
             <div className="mt-4 h-4 w-32 animate-pulse rounded bg-muted" />
           </div>
         </div>
@@ -184,13 +184,13 @@ export function SongList() {
           <Music className="h-20 w-20 text-foreground" />
         </div>
         <div>
-          <p className="text-sm font-medium uppercase text-muted-foreground">プレイリスト</p>
-          <h1 className="mt-2 text-4xl font-bold tracking-tight">すべての曲</h1>
+          <p className="text-sm font-medium uppercase tracking-widest text-accent">STATION</p>
+          <h1 className="mt-2 text-4xl font-bold tracking-tight">BizSound Radio</h1>
           <p className="mt-2 text-muted-foreground">
-            BizSound Stock の全楽曲ライブラリ
+            24/7 Store Music Stream
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            {songs.length} 曲
+            {songs.length} tracks
           </p>
         </div>
       </div>
@@ -221,18 +221,8 @@ export function SongList() {
         </div>
       ) : (
         <div className="space-y-1">
-          {/* Header Row */}
-          <div className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-4 border-b border-border px-4 py-2 text-xs font-medium uppercase text-muted-foreground">
-            <span className="w-8">#</span>
-            <span>タイトル</span>
-            <span className="hidden sm:block w-20 text-right">
-              <Clock className="ml-auto h-4 w-4" />
-            </span>
-            <span className="w-10"></span>
-          </div>
-
           {/* Song Rows */}
-          {songs.map((song, index) => {
+          {songs.map((song) => {
             const isCurrentSong = currentSong?.id === song.id
             const isPlayingThis = isCurrentSong && isPlaying
 
@@ -241,31 +231,23 @@ export function SongList() {
                 key={song.id}
                 onClick={() => handlePlaySong(song)}
                 className={cn(
-                  "group grid grid-cols-[auto_1fr_auto_auto] items-center gap-4 rounded-md px-4 py-2 cursor-pointer transition-colors",
+                  "group flex items-center gap-3 rounded-lg px-4 py-3 cursor-pointer transition-all",
                   isCurrentSong
                     ? "bg-accent/20 text-accent"
                     : "hover:bg-secondary/50"
                 )}
               >
-                {/* Number / Play Icon */}
-                <div className="flex w-8 items-center justify-center">
-                  <span className={cn(
-                    "text-sm tabular-nums",
-                    isCurrentSong ? "text-accent" : "text-muted-foreground group-hover:hidden"
-                  )}>
-                    {isPlayingThis ? (
-                      <Pause className="h-4 w-4" />
-                    ) : (
-                      <span className="group-hover:hidden">{index + 1}</span>
-                    )}
-                  </span>
-                  {!isCurrentSong && (
-                    <Play className="hidden h-4 w-4 group-hover:block" />
+                {/* Play/Pause Icon */}
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/50 group-hover:bg-accent group-hover:text-accent-foreground transition-colors">
+                  {isPlayingThis ? (
+                    <Pause className="h-4 w-4" />
+                  ) : (
+                    <Play className="h-4 w-4 ml-0.5" />
                   )}
                 </div>
 
                 {/* Song Info */}
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className={cn(
                     "truncate font-medium",
                     isCurrentSong ? "text-accent" : "text-foreground"
@@ -278,7 +260,7 @@ export function SongList() {
                 </div>
 
                 {/* Duration */}
-                <span className="hidden sm:block w-20 text-right text-sm tabular-nums text-muted-foreground">
+                <span className="hidden sm:block w-16 text-right text-sm tabular-nums text-muted-foreground">
                   {formatDuration(song.duration)}
                 </span>
 
@@ -289,7 +271,7 @@ export function SongList() {
                   onClick={(e) => toggleFavorite(song.id, e)}
                   disabled={!user || loadingFavorite === song.id}
                   className={cn(
-                    "h-8 w-8",
+                    "h-8 w-8 shrink-0",
                     favorites.has(song.id)
                       ? "text-accent"
                       : "text-muted-foreground opacity-0 group-hover:opacity-100"
