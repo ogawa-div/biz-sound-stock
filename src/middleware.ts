@@ -2,7 +2,8 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
 // Protected routes that require authentication
-const protectedRoutes = ["/favorites", "/settings", "/profile"]
+// Note: /favorites handles its own auth check in the component
+const protectedRoutes = ["/settings", "/profile"]
 
 // Admin routes
 const adminRoutes = ["/admin"]

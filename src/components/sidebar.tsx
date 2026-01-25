@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
 import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth/context"
 import { Button } from "@/components/ui/button"
-import { createBrowserClient } from "@supabase/ssr"
+import { createClient } from "@supabase/supabase-js"
 
 type MenuItem = {
   id: string
@@ -38,7 +38,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
     
     try {
       // 直接Supabaseクライアントを作成してサインアウト
-      const supabase = createBrowserClient(
+      const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
       )
@@ -147,20 +147,26 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
               </div>
             </div>
             {/* ログインボタン */}
-            <Link href="/login" onClick={onClose}>
-              <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
-                <LogIn className="mr-2 h-4 w-4" />
-                ログイン
-              </Button>
-            </Link>
+            <Button 
+              className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+              onClick={() => {
+                onClose?.()
+                window.location.href = "/login"
+              }}
+            >
+              <LogIn className="mr-2 h-4 w-4" />
+              ログイン
+            </Button>
             {/* 新規登録リンク */}
-            <Link 
-              href="/signup" 
-              onClick={onClose}
-              className="block text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+            <button 
+              onClick={() => {
+                onClose?.()
+                window.location.href = "/signup"
+              }}
+              className="block w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               アカウントをお持ちでない方は<span className="text-accent underline">新規登録</span>
-            </Link>
+            </button>
           </div>
         )}
       </div>

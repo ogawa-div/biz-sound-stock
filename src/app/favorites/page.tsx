@@ -4,7 +4,6 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Heart, Play, Pause, Shuffle, Loader2, Clock } from "lucide-react"
 import { useAuth } from "@/lib/auth/context"
-import { getSupabaseClient } from "@/lib/supabase/client"
 import { usePlayerStore } from "@/store/player-store"
 import { Sidebar } from "@/components/sidebar"
 import { MusicPlayer } from "@/components/music-player"
@@ -30,19 +29,69 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled
 }
 
+// お気に入りと曲情報を取得
+async function fetchFavoriteSongs(userId: string, accessToken: string): Promise<Song[]> {
+  const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  // まずお気に入りのsong_idを取得
+  const favUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/user_favorites?select=song_id&user_id=eq.${userId}&song_id=not.is.null`;
+  const favResponse = await fetch(favUrl, {
+    headers: {
+      "apikey": apiKey || "",
+      "Authorization": `Bearer ${accessToken}`,
+    },
+  });
+  
+  if (!favResponse.ok) return [];
+  const favData = await favResponse.json();
+  
+  if (favData.length === 0) return [];
+  
+  // song_idのリストを取得
+  const songIds = favData.map((f: { song_id: string }) => f.song_id);
+  
+  // 曲情報を取得
+  const songsUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/songs?id=in.(${songIds.join(",")})`;
+  const songsResponse = await fetch(songsUrl, {
+    headers: {
+      "apikey": apiKey || "",
+      "Authorization": `Bearer ${accessToken}`,
+    },
+  });
+  
+  if (!songsResponse.ok) return [];
+  return songsResponse.json();
+}
+
+// お気に入りから削除
+async function removeFavoriteFromDB(userId: string, songId: string, accessToken: string): Promise<boolean> {
+  const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/user_favorites?user_id=eq.${userId}&song_id=eq.${songId}`;
+  const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: {
+      "apikey": apiKey || "",
+      "Authorization": `Bearer ${accessToken}`,
+    },
+  });
+
+  return response.ok;
+}
+
 function FavoriteSongList() {
   const [songs, setSongs] = useState<Song[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [removingId, setRemovingId] = useState<string | null>(null)
   
-  const { user, isLoading: authLoading } = useAuth()
+  const { user, session, isLoading: authLoading } = useAuth()
   const { currentSong, isPlaying, playSong, toggle } = usePlayerStore()
 
   // Fetch favorite songs
   useEffect(() => {
     let isMounted = true
     
-    // タイムアウト: 5秒以上 authLoading が続いたらローディングを終了
+    // タイムアウト: 5秒以上続いたらローディングを終了
     const timeout = setTimeout(() => {
       if (isMounted && isLoading) {
         setIsLoading(false)
@@ -50,8 +99,8 @@ function FavoriteSongList() {
     }, 5000)
 
     async function fetchFavorites() {
-      // 未ログインの場合は即座にローディング終了
-      if (!user) {
+      // 未ログインまたはセッションがない場合は即座にローディング終了
+      if (!user || !session?.access_token) {
         if (isMounted) {
           setIsLoading(false)
         }
@@ -59,25 +108,8 @@ function FavoriteSongList() {
       }
 
       try {
-        const supabase = getSupabaseClient()
-        const { data, error } = await supabase
-          .from("user_favorites")
-          .select(`
-            song_id,
-            songs (*)
-          `)
-          .eq("user_id", user.id)
-          .not("song_id", "is", null)
-
-        if (!isMounted) return
-
-        if (error) {
-          console.error("Error fetching favorites:", error)
-          setSongs([])
-        } else {
-          const favSongs = (data || [])
-            .map((item: { songs: unknown }) => item.songs as Song | null)
-            .filter((s: Song | null): s is Song => s !== null)
+        const favSongs = await fetchFavoriteSongs(user.id, session.access_token)
+        if (isMounted) {
           setSongs(favSongs)
         }
       } catch (error) {
@@ -92,27 +124,16 @@ function FavoriteSongList() {
       }
     }
 
-    // authLoading が完了したら、または 2秒後に実行
+    // authLoading が完了したら実行
     if (!authLoading) {
       fetchFavorites()
-    } else {
-      const authTimeout = setTimeout(() => {
-        if (isMounted) {
-          fetchFavorites()
-        }
-      }, 2000)
-      return () => {
-        isMounted = false
-        clearTimeout(timeout)
-        clearTimeout(authTimeout)
-      }
     }
 
     return () => {
       isMounted = false
       clearTimeout(timeout)
     }
-  }, [user, authLoading, isLoading])
+  }, [user, session, authLoading, isLoading])
 
   const handlePlayAll = () => {
     if (songs.length === 0) return
@@ -130,18 +151,14 @@ function FavoriteSongList() {
 
   const removeFavorite = async (songId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!user) return
+    if (!user || !session?.access_token) return
 
     setRemovingId(songId)
     try {
-      const supabase = getSupabaseClient()
-      await supabase
-        .from("user_favorites")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("song_id", songId)
-
-      setSongs((prev) => prev.filter((s) => s.id !== songId))
+      const success = await removeFavoriteFromDB(user.id, songId, session.access_token)
+      if (success) {
+        setSongs((prev) => prev.filter((s) => s.id !== songId))
+      }
     } catch (error) {
       console.error("Error removing favorite:", error)
     } finally {

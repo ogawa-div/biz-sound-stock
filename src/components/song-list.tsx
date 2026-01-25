@@ -27,15 +27,15 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled
 }
 
-// 直接fetch APIを使用
-async function fetchFavoritesFromSupabase(userId: string): Promise<string[]> {
+// 直接fetch APIを使用（アクセストークンで認証）
+async function fetchFavoritesFromSupabase(userId: string, accessToken: string): Promise<string[]> {
   const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/user_favorites?select=song_id&user_id=eq.${userId}&song_id=not.is.null`;
   const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   const response = await fetch(url, {
     headers: {
       "apikey": apiKey || "",
-      "Authorization": `Bearer ${apiKey}`,
+      "Authorization": `Bearer ${accessToken}`,
     },
   });
 
@@ -44,7 +44,7 @@ async function fetchFavoritesFromSupabase(userId: string): Promise<string[]> {
   return data.map((f: { song_id: string }) => f.song_id);
 }
 
-async function addFavorite(userId: string, songId: string): Promise<boolean> {
+async function addFavorite(userId: string, songId: string, accessToken: string): Promise<boolean> {
   const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/user_favorites`;
   const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -52,7 +52,7 @@ async function addFavorite(userId: string, songId: string): Promise<boolean> {
     method: "POST",
     headers: {
       "apikey": apiKey || "",
-      "Authorization": `Bearer ${apiKey}`,
+      "Authorization": `Bearer ${accessToken}`,
       "Content-Type": "application/json",
       "Prefer": "return=minimal",
     },
@@ -62,7 +62,7 @@ async function addFavorite(userId: string, songId: string): Promise<boolean> {
   return response.ok;
 }
 
-async function removeFavorite(userId: string, songId: string): Promise<boolean> {
+async function removeFavorite(userId: string, songId: string, accessToken: string): Promise<boolean> {
   const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/user_favorites?user_id=eq.${userId}&song_id=eq.${songId}`;
   const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -70,7 +70,7 @@ async function removeFavorite(userId: string, songId: string): Promise<boolean> 
     method: "DELETE",
     headers: {
       "apikey": apiKey || "",
-      "Authorization": `Bearer ${apiKey}`,
+      "Authorization": `Bearer ${accessToken}`,
     },
   });
 
@@ -84,7 +84,7 @@ export function SongList() {
   // グローバルストアから曲を取得
   const { songs, isLoading, fetchSongs } = useSongsStore()
   
-  const { user } = useAuth()
+  const { user, session } = useAuth()
   const { currentSong, isPlaying, playSong, toggle } = usePlayerStore()
 
   // コンポーネントマウント時に曲を取得
@@ -94,15 +94,15 @@ export function SongList() {
 
   // お気に入りを取得（ログインユーザーのみ）
   useEffect(() => {
-    if (!user) {
+    if (!user || !session?.access_token) {
       setFavorites(new Set())
       return
     }
     
-    fetchFavoritesFromSupabase(user.id)
+    fetchFavoritesFromSupabase(user.id, session.access_token)
       .then((favIds) => setFavorites(new Set(favIds)))
       .catch((err) => console.error("Error fetching favorites:", err))
-  }, [user])
+  }, [user, session])
 
   const handlePlayAll = () => {
     if (songs.length === 0) return
@@ -120,14 +120,14 @@ export function SongList() {
 
   const toggleFavorite = async (songId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!user) return
+    if (!user || !session?.access_token) return
 
     setLoadingFavorite(songId)
     try {
       const isFavorite = favorites.has(songId)
 
       if (isFavorite) {
-        const success = await removeFavorite(user.id, songId)
+        const success = await removeFavorite(user.id, songId, session.access_token)
         if (success) {
           setFavorites((prev) => {
             const next = new Set(prev)
@@ -136,7 +136,7 @@ export function SongList() {
           })
         }
       } else {
-        const success = await addFavorite(user.id, songId)
+        const success = await addFavorite(user.id, songId, session.access_token)
         if (success) {
           setFavorites((prev) => new Set(prev).add(songId))
         }
