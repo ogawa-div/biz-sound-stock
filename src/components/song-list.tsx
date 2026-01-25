@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Heart, Play, Pause, Shuffle, Loader2, Music, Clock } from "lucide-react"
 import { usePlayerStore } from "@/store/player-store"
 import { useAuth } from "@/lib/auth/context"
-import { getSupabaseClient } from "@/lib/supabase/client"
+import { createBrowserClient } from "@supabase/ssr"
 import type { Song } from "@/types/database"
 import { cn } from "@/lib/utils"
 
@@ -27,43 +27,73 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled
 }
 
+// 独立したSupabaseクライアントを作成（認証状態に依存しない）
+function getAnonSupabase() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
+
 export function SongList() {
   const [songs, setSongs] = useState<Song[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
   const [loadingFavorite, setLoadingFavorite] = useState<string | null>(null)
   
+  // 曲が一度取得されたかどうかを追跡
+  const hasFetchedRef = useRef(false)
+  const songsRef = useRef<Song[]>([])
+  
   const { user } = useAuth()
   const { currentSong, isPlaying, playSong, toggle } = usePlayerStore()
 
-  // 曲を取得 - ユーザーのログイン状態に関係なく即座に実行
+  // 曲を取得 - 一度だけ実行し、結果をキャッシュ
   useEffect(() => {
+    // 既に取得済みなら再取得しない
+    if (hasFetchedRef.current && songsRef.current.length > 0) {
+      setSongs(songsRef.current)
+      setIsLoading(false)
+      return
+    }
+    
     let isMounted = true
     
     async function fetchSongs() {
       console.log("[SongList] Fetching songs...")
       try {
-        const supabase = getSupabaseClient()
+        // 認証状態に依存しない独立したクライアントを使用
+        const supabase = getAnonSupabase()
         const { data, error } = await supabase
           .from("songs")
           .select("*")
           .order("created_at", { ascending: false })
         
-        console.log("[SongList] Response:", { data, error, count: data?.length })
+        console.log("[SongList] Response:", { count: data?.length, error })
         
         if (error) {
-          console.error("[SongList] Error fetching songs:", error)
-          if (isMounted) setSongs([])
+          console.error("[SongList] Error:", error)
+          if (isMounted) {
+            setSongs([])
+            setIsLoading(false)
+          }
         } else {
-          console.log("[SongList] Setting songs:", data?.length || 0, "items")
-          if (isMounted) setSongs(data || [])
+          const songsData = data || []
+          // キャッシュに保存
+          songsRef.current = songsData
+          hasFetchedRef.current = true
+          
+          if (isMounted) {
+            setSongs(songsData)
+            setIsLoading(false)
+          }
         }
       } catch (error) {
         console.error("[SongList] Catch error:", error)
-        if (isMounted) setSongs([])
-      } finally {
-        console.log("[SongList] Setting isLoading to false")
-        if (isMounted) setIsLoading(false)
+        if (isMounted) {
+          setSongs([])
+          setIsLoading(false)
+        }
       }
     }
     
@@ -72,7 +102,7 @@ export function SongList() {
     return () => {
       isMounted = false
     }
-  }, []) // 依存配列を空にして、マウント時に1回だけ実行
+  }, [])
 
   // お気に入りを取得（ログインユーザーのみ）
   useEffect(() => {
@@ -82,11 +112,11 @@ export function SongList() {
     }
     
     let isMounted = true
-    const userId = user.id // 変数にキャプチャしてnullチェックを満たす
+    const userId = user.id
     
     async function fetchFavorites() {
       try {
-        const supabase = getSupabaseClient()
+        const supabase = getAnonSupabase()
         const { data, error } = await supabase
           .from("user_favorites")
           .select("song_id")
@@ -131,7 +161,7 @@ export function SongList() {
 
     setLoadingFavorite(songId)
     try {
-      const supabase = getSupabaseClient()
+      const supabase = getAnonSupabase()
       const isFavorite = favorites.has(songId)
 
       if (isFavorite) {

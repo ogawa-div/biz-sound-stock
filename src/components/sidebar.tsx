@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth/context"
 import { Button } from "@/components/ui/button"
+import { createBrowserClient } from "@supabase/ssr"
 
 type MenuItem = {
   id: string
@@ -25,18 +26,30 @@ const menuItems: MenuItem[] = [
 function SidebarContent({ onClose }: { onClose?: () => void }) {
   const router = useRouter()
   const pathname = usePathname()
-  const { user, profile, signOut } = useAuth()
+  const { user, profile } = useAuth()
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const handleSignOut = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
     
+    if (isLoggingOut) return
+    setIsLoggingOut(true)
+    
     try {
-      await signOut()
+      // 直接Supabaseクライアントを作成してサインアウト
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      )
+      await supabase.auth.signOut()
       onClose?.()
+      // 強制的にページをリロードしてログイン画面へ
       window.location.href = "/login"
     } catch (error) {
       console.error("Error signing out:", error)
+      setIsLoggingOut(false)
+      // エラーでも強制的にリダイレクト
       window.location.href = "/login"
     }
   }
@@ -115,9 +128,10 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
               size="sm"
               className="w-full"
               onClick={(e) => handleSignOut(e)}
+              disabled={isLoggingOut}
             >
               <LogOut className="mr-2 h-4 w-4" />
-              ログアウト
+              {isLoggingOut ? "ログアウト中..." : "ログアウト"}
             </Button>
           </div>
         ) : (
