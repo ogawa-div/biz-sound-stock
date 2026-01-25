@@ -1,8 +1,7 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState } from "react"
-import { User, Session } from "@supabase/supabase-js"
-import { getSupabaseClient } from "@/lib/supabase/client"
+import { createContext, useContext, useEffect, useState, useRef } from "react"
+import { createClient, User, Session, SupabaseClient } from "@supabase/supabase-js"
 import type { Profile } from "@/types/database"
 
 interface AuthContextType {
@@ -25,22 +24,57 @@ const AuthContext = createContext<AuthContextType>({
   refreshProfile: async () => {},
 })
 
+// プロファイル取得（fetch API使用）
+async function fetchProfileFromSupabase(userId: string): Promise<Profile | null> {
+  const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=*`;
+  const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "apikey": apiKey || "",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+    });
+
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data?.[0] || null;
+  } catch {
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-
-  const supabase = getSupabaseClient()
+  
+  // Supabaseクライアントをrefで保持（再作成を防ぐ）
+  const supabaseRef = useRef<SupabaseClient | null>(null)
+  
+  // Supabaseクライアントを取得
+  const getSupabase = () => {
+    if (!supabaseRef.current) {
+      supabaseRef.current = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
+          },
+        }
+      )
+    }
+    return supabaseRef.current
+  }
 
   const fetchProfile = async (userId: string) => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single()
-
-    if (!error && data) {
+    const data = await fetchProfileFromSupabase(userId)
+    if (data) {
       setProfile(data)
     }
   }
@@ -52,6 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
+    const supabase = getSupabase()
     await supabase.auth.signOut()
     setUser(null)
     setProfile(null)
@@ -59,20 +94,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
+    const supabase = getSupabase()
+    let mounted = true
+
     // Get initial session
     const getInitialSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
 
-      setSession(session)
-      setUser(session?.user ?? null)
+        if (!mounted) return
 
-      if (session?.user) {
-        await fetchProfile(session.user.id)
+        setSession(session)
+        setUser(session?.user ?? null)
+
+        if (session?.user) {
+          await fetchProfile(session.user.id)
+        }
+      } catch (error) {
+        console.error("Error getting session:", error)
+      } finally {
+        if (mounted) {
+          setIsLoading(false)
+        }
       }
-
-      setIsLoading(false)
     }
 
     getInitialSession()
@@ -80,7 +126,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event: string, session: Session | null) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return
+
       setSession(session)
       setUser(session?.user ?? null)
 
@@ -94,6 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     return () => {
+      mounted = false
       subscription.unsubscribe()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
