@@ -150,7 +150,7 @@ export function SongList() {
 
   if (isLoading) {
     return (
-      <div className="p-8">
+      <div className="px-4 py-6 md:p-8">
         <div className="mb-8 flex items-center gap-6">
           <div className="flex h-48 w-48 items-center justify-center rounded-lg bg-gradient-to-br from-accent/50 to-primary/50">
             <Music className="h-20 w-20 text-foreground/60" />
@@ -177,7 +177,7 @@ export function SongList() {
   }
 
   return (
-    <div className="p-8">
+    <div className="px-4 py-6 md:p-8">
       {/* Header */}
       <div className="mb-8 flex items-center gap-6">
         <div className="flex h-48 w-48 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-accent/60 to-primary/60 shadow-xl">
@@ -264,14 +264,14 @@ export function SongList() {
                   {formatDuration(song.duration)}
                 </span>
 
-                {/* Favorite Button */}
+                {/* Favorite Button - Hidden on mobile */}
                 <Button
                   size="icon"
                   variant="ghost"
                   onClick={(e) => toggleFavorite(song.id, e)}
                   disabled={!user || loadingFavorite === song.id}
                   className={cn(
-                    "h-8 w-8 shrink-0",
+                    "h-8 w-8 shrink-0 hidden md:inline-flex",
                     favorites.has(song.id)
                       ? "text-accent"
                       : "text-muted-foreground opacity-0 group-hover:opacity-100"
