@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# MP3アップロード用フォルダ（大きいファイルなのでGit管理外）
+/songs-to-upload

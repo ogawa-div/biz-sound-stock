@@ -75,7 +75,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto p-4">
+      <nav className="flex-1 overflow-y-auto overscroll-none p-4">
         <div className="space-y-6">
           <div>
             <h2 className="mb-3 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">

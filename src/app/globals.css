@@ -128,12 +128,29 @@
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground antialiased;
-  }
-  /* Default to dark mode */
+  
+  /* Mobile App-like Fixed Viewport */
   html {
     color-scheme: dark;
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  
+  body {
+    @apply bg-background text-foreground antialiased;
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+    /* Prevent pull-to-refresh on mobile */
+    touch-action: pan-x pan-y;
+  }
+  
+  /* Prevent iOS bounce/rubber-band effect */
+  html, body {
+    position: fixed;
+    width: 100%;
   }
 }
 

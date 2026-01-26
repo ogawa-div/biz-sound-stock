@@ -335,10 +335,10 @@ function FavoriteSongList() {
 
 export default function FavoritesPage() {
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-[100dvh] flex-col overflow-hidden">
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto pt-14 md:pt-0">
+        <main className="flex-1 overflow-y-auto overscroll-none pt-14 md:pt-0">
           <FavoriteSongList />
         </main>
       </div>
