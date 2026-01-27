@@ -10,11 +10,18 @@ const supabaseAdmin = createClient(
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, email, priceType = "monthly" } = await request.json()
+    const { userId, email, planId } = await request.json()
 
     if (!userId || !email) {
       return NextResponse.json(
         { error: "User ID and email are required" },
+        { status: 400 }
+      )
+    }
+
+    if (!planId || (planId !== "standard" && planId !== "earlyBird")) {
+      return NextResponse.json(
+        { error: "Valid planId (standard or earlyBird) is required" },
         { status: 400 }
       )
     }
@@ -45,10 +52,10 @@ export async function POST(request: NextRequest) {
         .eq("id", userId)
     }
 
-    // Determine price ID
-    const priceId = priceType === "yearly" 
-      ? STRIPE_PRICES.PREMIUM_YEARLY 
-      : STRIPE_PRICES.PREMIUM_MONTHLY
+    // Determine price ID based on planId
+    const priceId = planId === "standard" 
+      ? STRIPE_PRICES.STANDARD 
+      : STRIPE_PRICES.EARLY_BIRD
 
     if (!priceId) {
       return NextResponse.json(
@@ -56,6 +63,11 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
+
+    // Base URL determination with fallback
+    // Priority: NEXT_PUBLIC_APP_URL > VERCEL_URL > localhost
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL 
+      || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
 
     // Create checkout session
     const session = await stripe.checkout.sessions.create({
@@ -68,8 +80,8 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing?success=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing?canceled=true`,
+      success_url: `${baseUrl}/pricing?success=true`,
+      cancel_url: `${baseUrl}/pricing?canceled=true`,
       subscription_data: {
         trial_period_days: 14, // 14日間の無料トライアル
         metadata: {

@@ -36,7 +36,7 @@ function PricingContent() {
     }
   }, [searchParams])
 
-  const handleSubscribe = async () => {
+  const handleSubscribe = async (planId: "standard" | "earlyBird") => {
     if (!user) {
       router.push("/login?redirect=/pricing")
       return
@@ -50,7 +50,7 @@ function PricingContent() {
         body: JSON.stringify({
           userId: user.id,
           email: user.email,
-          priceType: "monthly",
+          planId: planId,
         }),
       })
 
@@ -196,7 +196,7 @@ function PricingContent() {
         </div>
 
         {/* Pricing Cards */}
-        <div className="mx-auto grid max-w-4xl gap-8 md:grid-cols-2">
+        <div className="mx-auto grid max-w-6xl gap-6 md:grid-cols-3">
           {/* Free Plan */}
           <Card className="relative border-border/50 bg-card/50 backdrop-blur">
             <CardHeader className="pb-4">
@@ -232,7 +232,7 @@ function PricingContent() {
             </CardContent>
           </Card>
 
-          {/* Premium Plan */}
+          {/* Standard Plan */}
           <Card className="relative border-2 border-accent bg-gradient-to-b from-accent/5 to-transparent">
             <div className="absolute -top-3 left-1/2 -translate-x-1/2">
               <div className="flex items-center gap-1 rounded-full bg-accent px-4 py-1 text-xs font-bold text-accent-foreground">
@@ -242,23 +242,23 @@ function PricingContent() {
             </div>
             <CardHeader className="pb-4">
               <h3 className="flex items-center gap-2 text-xl font-semibold text-foreground">
-                {PLANS.premium.name}
+                {PLANS.standard.name}
                 <Sparkles className="h-5 w-5 text-accent" />
               </h3>
               <p className="text-sm text-muted-foreground">
-                {PLANS.premium.description}
+                {PLANS.standard.description}
               </p>
             </CardHeader>
             <CardContent>
               <div className="mb-6">
                 <span className="text-4xl font-bold text-foreground">
-                  ¥{PLANS.premium.price.toLocaleString()}
+                  ¥{PLANS.standard.price.toLocaleString()}
                 </span>
                 <span className="text-muted-foreground">/月</span>
               </div>
 
               <ul className="mb-8 space-y-3">
-                {PLANS.premium.features.map((feature, index) => (
+                {PLANS.standard.features.map((feature, index) => (
                   <li key={index} className="flex items-center gap-3 text-sm">
                     <Check className="h-4 w-4 text-accent" />
                     <span className="text-foreground">{feature}</span>
@@ -281,7 +281,73 @@ function PricingContent() {
               ) : (
                 <Button 
                   className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
-                  onClick={handleSubscribe}
+                  onClick={() => handleSubscribe("standard")}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      処理中...
+                    </>
+                  ) : (
+                    "14日間無料で始める"
+                  )}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Early Bird Plan */}
+          <Card className="relative border-border/50 bg-card/50 backdrop-blur">
+            {PLANS.earlyBird.isCampaign && (
+              <div className="absolute -top-3 right-4">
+                <div className="rounded-full bg-amber-500 px-3 py-1 text-xs font-bold text-white">
+                  キャンペーン
+                </div>
+              </div>
+            )}
+            <CardHeader className="pb-4">
+              <h3 className="text-xl font-semibold text-foreground">
+                {PLANS.earlyBird.name}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {PLANS.earlyBird.description}
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-6">
+                <span className="text-4xl font-bold text-foreground">
+                  ¥{PLANS.earlyBird.price.toLocaleString()}
+                </span>
+                <span className="text-muted-foreground">/月</span>
+              </div>
+
+              <ul className="mb-8 space-y-3">
+                {PLANS.earlyBird.features.map((feature, index) => (
+                  <li key={index} className="flex items-center gap-3 text-sm">
+                    <Check className="h-4 w-4 text-accent" />
+                    <span className="text-foreground">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+
+              {isPremium ? (
+                <Button 
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleManageSubscription}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    "サブスクリプション管理"
+                  )}
+                </Button>
+              ) : (
+                <Button 
+                  className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+                  onClick={() => handleSubscribe("earlyBird")}
                   disabled={isLoading}
                 >
                   {isLoading ? (

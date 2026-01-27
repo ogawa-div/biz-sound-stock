@@ -152,6 +152,20 @@
     position: fixed;
     width: 100%;
   }
+  
+  /* Smooth scroll for anchor links */
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Landing Page - Allow normal scrolling */
+html[data-lp-page="true"],
+body[data-lp-page="true"] {
+  position: static !important;
+  height: auto !important;
+  overflow: auto !important;
+  width: 100% !important;
 }
 
 /* Custom scrollbar for dark theme */

@@ -41,7 +41,7 @@ export function UpgradePrompt() {
           <p className="mb-6 text-center text-muted-foreground">
             無料プランでは30秒のプレビューのみ再生可能です。
             <br />
-            フル再生するにはプレミアムプランにアップグレードしてください。
+            フル再生するには有料プランにアップグレードしてください。
           </p>
 
           {/* Features */}
