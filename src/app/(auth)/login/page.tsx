@@ -98,10 +98,13 @@ export default function LoginPage() {
                   メールアドレス
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                  <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
                   <input
                     type="email"
                     name="email"
+                    id="email"
+                    autoComplete="email"
+                    inputMode="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full rounded-lg border border-input bg-background py-3 pl-10 pr-4 text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
@@ -118,10 +121,13 @@ export default function LoginPage() {
                   パスワード
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                  <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
                   <input
                     type={showPassword ? "text" : "password"}
                     name="password"
+                    id="password"
+                    autoComplete="current-password"
+                    inputMode="text"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full rounded-lg border border-input bg-background py-3 pl-10 pr-12 text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
@@ -132,7 +138,8 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground z-10 touch-manipulation"
+                    aria-label={showPassword ? "パスワードを非表示" : "パスワードを表示"}
                   >
                     {showPassword ? (
                       <EyeOff className="h-5 w-5" />

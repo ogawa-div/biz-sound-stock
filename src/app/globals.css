@@ -201,3 +201,27 @@ body[data-lp-page="true"] {
 .glow-accent {
   box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
 }
+
+/* Mobile input optimization */
+@layer base {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="number"],
+  textarea {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    touch-action: manipulation;
+    /* Prevent zoom on iOS when focusing input */
+    font-size: 16px;
+  }
+  
+  /* Ensure input fields are tappable on mobile */
+  input:not([disabled]),
+  textarea:not([disabled]) {
+    pointer-events: auto;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
