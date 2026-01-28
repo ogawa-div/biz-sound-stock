@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BizSound Stock - 店舗向け著作権フリーBGM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              // Theme A: Modern & Energetic
+              primaryA: '#3b82f6',
+              secondaryA: '#f97316',
+              darkA: '#0f172a',
+              
+              // Theme B: Elegant & Relaxing
+              primaryB: '#78716c', // Stone 500
+              secondaryB: '#d6d3d1', // Stone 300
+              accentB: '#a8a29e', // Stone 400
+              bgB: '#fafaf9', // Stone 50
+
+              // Theme C: Clean & Professional
+              primaryC: '#0e7490', // Cyan 700
+              secondaryC: '#e0f2fe', // Sky 100
+
+              // Theme D: Pop & Vivid
+              primaryD: '#ff0080', // Vivid Pink
+              secondaryD: '#fbbf24', // Amber 400
+              bgD: '#fffbe6', // Very light warm yellow
+
+              // Theme E: Luxury Dark
+              primaryE: '#d4af37', // Gold
+              bgE: '#121212', // Almost Black
+              surfaceE: '#1e1e1e', // Dark Gray
+
+              // Theme F: Nature & Organic
+              primaryF: '#4d7c0f', // Lime 700
+              secondaryF: '#dcfce7', // Green 100
+              bgF: '#f7fee7', // Lime 50
+              accentF: '#a16207', // Yellow 800 (Wood tone)
+
+              // Theme G: Japan (Wa)
+              primaryG: '#1e3a8a', // Indigo 900
+              accentG: '#991b1b', // Red 800
+              bgG: '#fafaf9', // Warm White
+
+              // Theme H: Cyber (Future)
+              primaryH: '#d946ef', // Fuchsia 500
+              secondaryH: '#06b6d4', // Cyan 500
+              bgH: '#020617', // Slate 950
+
+              // Theme I: Retro (Diner)
+              primaryI: '#ef4444', // Red 500
+              secondaryI: '#14b8a6', // Teal 500
+              bgI: '#fffbeb', // Amber 50
+
+              // Theme J: LoFi (Chill/Pixel)
+              primaryJ: '#8b5cf6', // Violet 500
+              secondaryJ: '#f472b6', // Pink 400
+              bgJ: '#2e1065', // Violet 950
+              
+              // Theme K: Nordic (Minimal)
+              primaryK: '#64748b', // Slate 500
+              bgK: '#f8fafc', // Slate 50
+
+              // Theme L: Bold (Brutalist)
+              primaryL: '#a3e635', // Lime 400
+              bgL: '#000000', // Black
+
+              // Theme M: Warm LoFi (Cafe)
+              primaryM: '#78350f', // Amber 900 (Coffee)
+              secondaryM: '#d97706', // Amber 600
+              bgM: '#fff8dc', // Cornsilk/Cream
+
+              // Theme N: City Pop (Night/VHS)
+              primaryN: '#ec4899', // Pink 500
+              secondaryN: '#3b82f6', // Blue 500
+              bgN: '#1e1b4b', // Indigo 950
+
+              // Theme O: Analog (Tape/DIY)
+              primaryO: '#dc2626', // Red 600 (Tape Red)
+              secondaryO: '#4b5563', // Gray 600 (Pencil)
+              bgO: '#e5e7eb', // Gray 200 (Paper)
+
+              // Theme P: Vaporwave (Aesthetic)
+              primaryP: '#06b6d4', // Cyan
+              secondaryP: '#f472b6', // Pink
+              bgP: '#ffdeeb', // Light Pinkish White
+
+              // Theme Q: Abstract (Jazz Hop)
+              primaryQ: '#1e293b', // Slate 800
+              secondaryQ: '#d97706', // Amber 600
+              bgQ: '#f3f4f6', // Gray 100
+
+              // Theme R: Rainy (Midnight)
+              primaryR: '#60a5fa', // Blue 400
+              secondaryR: '#818cf8', // Indigo 400
+              bgR: '#0f172a', // Slate 900
+            },
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              serif: ['Playfair Display', 'serif'],
+              rounded: ['M PLUS Rounded 1c', 'sans-serif'],
+              mincho: ['Shippori Mincho', 'serif'],
+              mono: ['Share Tech Mono', 'monospace'],
+              retro: ['Righteous', 'cursive'],
+              pixel: ['VT323', 'monospace'],
+              bold: ['Oswald', 'sans-serif'],
+              hand: ['Caveat', 'cursive'], // For Warm LoFi
+              dot: ['DotGothic16', 'sans-serif'], // For City Pop
+              typewriter: ['Courier Prime', 'monospace'], // For Analog
+              vapor: ['Cormorant Garamond', 'serif'], // For Vaporwave
+              block: ['Anton', 'sans-serif'], // For Abstract
+              clean: ['Quicksand', 'sans-serif'], // For Rainy
+            },
+            animation: {
+              'spin-slow': 'spin 12s linear infinite',
+              'marquee': 'marquee 20s linear infinite',
+              'rain': 'rain 1s linear infinite',
+            },
+            keyframes: {
+              marquee: {
+                '0%': { transform: 'translateX(0)' },
+                '100%': { transform: 'translateX(-50%)' },
+              },
+              rain: {
+                '0%': { transform: 'translateY(-100%)', opacity: '0' },
+                '50%': { opacity: '0.5' },
+                '100%': { transform: 'translateY(100%)', opacity: '0' },
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Playfair+Display:wght@400;700&family=Shippori+Mincho:wght@400;700&family=Share+Tech+Mono&family=Righteous&family=VT323&family=Oswald:wght@500;700&family=Caveat:wght@400;700&family=DotGothic16&family=Courier+Prime:wght@400;700&family=Cormorant+Garamond:ital,wght@1,400;1,700&family=Anton&family=Quicksand:wght@300;500;700&display=swap" rel="stylesheet">
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
