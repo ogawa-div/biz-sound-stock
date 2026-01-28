@@ -84,6 +84,12 @@ export default function SignupPage() {
         return
       }
 
+      // Check if user already exists (Supabase returns empty identities for existing users)
+      if (data.user && data.user.identities && data.user.identities.length === 0) {
+        setError("このメールアドレスは既に登録されています。ログインページからログインしてください。")
+        return
+      }
+
       // Update profile with business info (using fetch API)
       if (data.user) {
         const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
