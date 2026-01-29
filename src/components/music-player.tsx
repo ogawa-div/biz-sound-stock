@@ -2,8 +2,8 @@
 
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Heart, Music, Crown } from "lucide-react"
-import { useState, useEffect } from "react"
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Heart, Music, Crown, Loader2 } from "lucide-react"
+import { useState, useEffect, useCallback } from "react"
 import { usePlayerStore } from "@/store/player-store"
 import { useAuth } from "@/lib/auth/context"
 import { UpgradePrompt } from "@/components/upgrade-prompt"
@@ -16,9 +16,60 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`
 }
 
+// Favorite API functions
+async function fetchIsFavorite(userId: string, songId: string, accessToken: string): Promise<boolean> {
+  const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/user_favorites?select=id&user_id=eq.${userId}&song_id=eq.${songId}`;
+  const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  const response = await fetch(url, {
+    headers: {
+      "apikey": apiKey || "",
+      "Authorization": `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) return false;
+  const data = await response.json();
+  return data.length > 0;
+}
+
+async function addFavorite(userId: string, songId: string, accessToken: string): Promise<boolean> {
+  const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/user_favorites`;
+  const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "apikey": apiKey || "",
+      "Authorization": `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      "Prefer": "return=minimal",
+    },
+    body: JSON.stringify({ user_id: userId, song_id: songId }),
+  });
+
+  return response.ok;
+}
+
+async function removeFavorite(userId: string, songId: string, accessToken: string): Promise<boolean> {
+  const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/user_favorites?user_id=eq.${userId}&song_id=eq.${songId}`;
+  const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: {
+      "apikey": apiKey || "",
+      "Authorization": `Bearer ${accessToken}`,
+    },
+  });
+
+  return response.ok;
+}
+
 export function MusicPlayer() {
   const [isFavorite, setIsFavorite] = useState(false)
-  const { user } = useAuth()
+  const [isLoadingFavorite, setIsLoadingFavorite] = useState(false)
+  const { user, session } = useAuth()
   
   // Player store state
   const isPlaying = usePlayerStore((state) => state.isPlaying)
@@ -44,6 +95,38 @@ export function MusicPlayer() {
   useEffect(() => {
     setUserId(user?.id || null)
   }, [user?.id, setUserId])
+
+  // Fetch favorite status when song changes
+  useEffect(() => {
+    if (!user || !session?.access_token || !currentSong) {
+      setIsFavorite(false)
+      return
+    }
+
+    fetchIsFavorite(user.id, currentSong.id, session.access_token)
+      .then(setIsFavorite)
+      .catch(() => setIsFavorite(false))
+  }, [user, session, currentSong?.id])
+
+  // Toggle favorite
+  const toggleFavorite = useCallback(async () => {
+    if (!user || !session?.access_token || !currentSong) return
+
+    setIsLoadingFavorite(true)
+    try {
+      if (isFavorite) {
+        const success = await removeFavorite(user.id, currentSong.id, session.access_token)
+        if (success) setIsFavorite(false)
+      } else {
+        const success = await addFavorite(user.id, currentSong.id, session.access_token)
+        if (success) setIsFavorite(true)
+      }
+    } catch (error) {
+      console.error("Error toggling favorite:", error)
+    } finally {
+      setIsLoadingFavorite(false)
+    }
+  }, [user, session, currentSong, isFavorite])
 
   // Calculate progress percentage
   const progressPercent = duration > 0 ? (progress / duration) * 100 : 0
@@ -100,15 +183,18 @@ export function MusicPlayer() {
               {currentSong?.artist || currentPlaylist?.title || "再生ボタンを押してBGMを開始"}
             </p>
           </div>
-          <Button 
-            size="icon" 
-            variant="ghost" 
-            onClick={() => setIsFavorite(!isFavorite)} 
-            className="flex-shrink-0"
-            disabled={!currentSong}
+          <button 
+            type="button"
+            onClick={toggleFavorite}
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full transition-colors hover:bg-accent/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!currentSong || !user || isLoadingFavorite}
           >
-            <Heart className={`h-5 w-5 ${isFavorite ? "fill-accent text-accent" : ""}`} />
-          </Button>
+            {isLoadingFavorite ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Heart className={`h-5 w-5 ${isFavorite ? "fill-accent text-accent" : ""}`} />
+            )}
+          </button>
         </div>
 
           {/* Playback Controls */}
