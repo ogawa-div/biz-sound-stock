@@ -292,27 +292,30 @@ export function SongList() {
                 </span>
 
                 {/* Favorite Button */}
-                <Button
-                  size="icon"
-                  variant="ghost"
+                <button
+                  type="button"
                   onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
                     console.log("[FavoriteBtn] Button clicked!", { songId: song.id, user: !!user })
                     toggleFavorite(song.id, e)
                   }}
                   disabled={!user || loadingFavorite === song.id}
                   className={cn(
-                    "h-8 w-8 shrink-0",
+                    "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors",
+                    "hover:bg-accent/20 disabled:opacity-50 disabled:cursor-not-allowed",
                     favorites.has(song.id)
                       ? "text-accent"
-                      : "text-muted-foreground md:opacity-0 md:group-hover:opacity-100"
+                      : "text-muted-foreground"
                   )}
+                  style={{ pointerEvents: 'auto' }}
                 >
                   {loadingFavorite === song.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin pointer-events-none" />
                   ) : (
-                    <Heart className={cn("h-4 w-4", favorites.has(song.id) && "fill-current")} />
+                    <Heart className={cn("h-4 w-4 pointer-events-none", favorites.has(song.id) && "fill-current")} />
                   )}
-                </Button>
+                </button>
               </div>
             )
           })}
