@@ -100,6 +100,15 @@ export function SongList() {
     fetchSongs()
   }, [fetchSongs])
 
+  // Debug: ユーザー状態を確認
+  useEffect(() => {
+    console.log("[SongList] Auth state:", { 
+      userId: user?.id, 
+      hasSession: !!session, 
+      hasAccessToken: !!session?.access_token 
+    })
+  }, [user, session])
+
   // お気に入りを取得（ログインユーザーのみ）
   useEffect(() => {
     if (!user || !session?.access_token) {
@@ -286,7 +295,10 @@ export function SongList() {
                 <Button
                   size="icon"
                   variant="ghost"
-                  onClick={(e) => toggleFavorite(song.id, e)}
+                  onClick={(e) => {
+                    console.log("[FavoriteBtn] Button clicked!", { songId: song.id, user: !!user })
+                    toggleFavorite(song.id, e)
+                  }}
                   disabled={!user || loadingFavorite === song.id}
                   className={cn(
                     "h-8 w-8 shrink-0",
