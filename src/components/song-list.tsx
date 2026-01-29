@@ -48,8 +48,6 @@ async function addFavorite(userId: string, songId: string, accessToken: string):
   const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/user_favorites`;
   const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  console.log("[addFavorite] Sending POST request", { url, userId, songId });
-
   const response = await fetch(url, {
     method: "POST",
     headers: {
@@ -60,12 +58,6 @@ async function addFavorite(userId: string, songId: string, accessToken: string):
     },
     body: JSON.stringify({ user_id: userId, song_id: songId }),
   });
-
-  console.log("[addFavorite] Response status:", response.status);
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("[addFavorite] Error response:", errorText);
-  }
 
   return response.ok;
 }
@@ -100,14 +92,6 @@ export function SongList() {
     fetchSongs()
   }, [fetchSongs])
 
-  // Debug: ユーザー状態を確認
-  useEffect(() => {
-    console.log("[SongList] Auth state:", { 
-      userId: user?.id, 
-      hasSession: !!session, 
-      hasAccessToken: !!session?.access_token 
-    })
-  }, [user, session])
 
   // お気に入りを取得（ログインユーザーのみ）
   useEffect(() => {
@@ -135,24 +119,15 @@ export function SongList() {
     }
   }
 
-  const toggleFavorite = async (songId: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    console.log("[Favorite] toggleFavorite called", { songId, userId: user?.id, hasToken: !!session?.access_token })
-    
-    if (!user || !session?.access_token) {
-      console.log("[Favorite] No user or token, returning early")
-      return
-    }
+  const toggleFavorite = async (songId: string) => {
+    if (!user || !session?.access_token) return
 
     setLoadingFavorite(songId)
     try {
       const isFavorite = favorites.has(songId)
-      console.log("[Favorite] Current state:", { isFavorite })
 
       if (isFavorite) {
-        console.log("[Favorite] Removing favorite...")
         const success = await removeFavorite(user.id, songId, session.access_token)
-        console.log("[Favorite] Remove result:", success)
         if (success) {
           setFavorites((prev) => {
             const next = new Set(prev)
@@ -161,15 +136,13 @@ export function SongList() {
           })
         }
       } else {
-        console.log("[Favorite] Adding favorite...")
         const success = await addFavorite(user.id, songId, session.access_token)
-        console.log("[Favorite] Add result:", success)
         if (success) {
           setFavorites((prev) => new Set(prev).add(songId))
         }
       }
     } catch (error) {
-      console.error("[Favorite] Error toggling favorite:", error)
+      console.error("Error toggling favorite:", error)
     } finally {
       setLoadingFavorite(null)
     }
@@ -263,13 +236,10 @@ export function SongList() {
                     : "hover:bg-secondary/50"
                 )}
               >
-                {/* Play/Pause Button - クリック可能エリア */}
+                {/* Play/Pause Button */}
                 <button
                   type="button"
-                  onClick={() => {
-                    console.log("[PlayBtn] Play button clicked!", { songId: song.id })
-                    handlePlaySong(song)
-                  }}
+                  onClick={() => handlePlaySong(song)}
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/50 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
                 >
                   {isPlayingThis ? (
@@ -282,10 +252,7 @@ export function SongList() {
                 {/* Song Info - クリックで再生 */}
                 <button
                   type="button"
-                  onClick={() => {
-                    console.log("[SongInfo] Song info clicked!", { songId: song.id })
-                    handlePlaySong(song)
-                  }}
+                  onClick={() => handlePlaySong(song)}
                   className="min-w-0 flex-1 text-left cursor-pointer"
                 >
                   <p className={cn(
@@ -307,14 +274,7 @@ export function SongList() {
                 {/* Favorite Button */}
                 <button
                   type="button"
-                  onClick={() => {
-                    console.log("[FavoriteBtn] ★★★ Button clicked! ★★★", { songId: song.id, user: !!user })
-                    if (!user || !session?.access_token) {
-                      console.log("[FavoriteBtn] No user or token")
-                      return
-                    }
-                    toggleFavorite(song.id, { stopPropagation: () => {} } as React.MouseEvent)
-                  }}
+                  onClick={() => toggleFavorite(song.id)}
                   disabled={!user || loadingFavorite === song.id}
                   className={cn(
                     "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors cursor-pointer",
