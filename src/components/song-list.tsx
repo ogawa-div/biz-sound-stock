@@ -48,6 +48,8 @@ async function addFavorite(userId: string, songId: string, accessToken: string):
   const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/user_favorites`;
   const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+  console.log("[addFavorite] Sending POST request", { url, userId, songId });
+
   const response = await fetch(url, {
     method: "POST",
     headers: {
@@ -58,6 +60,12 @@ async function addFavorite(userId: string, songId: string, accessToken: string):
     },
     body: JSON.stringify({ user_id: userId, song_id: songId }),
   });
+
+  console.log("[addFavorite] Response status:", response.status);
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("[addFavorite] Error response:", errorText);
+  }
 
   return response.ok;
 }
@@ -120,14 +128,22 @@ export function SongList() {
 
   const toggleFavorite = async (songId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!user || !session?.access_token) return
+    console.log("[Favorite] toggleFavorite called", { songId, userId: user?.id, hasToken: !!session?.access_token })
+    
+    if (!user || !session?.access_token) {
+      console.log("[Favorite] No user or token, returning early")
+      return
+    }
 
     setLoadingFavorite(songId)
     try {
       const isFavorite = favorites.has(songId)
+      console.log("[Favorite] Current state:", { isFavorite })
 
       if (isFavorite) {
+        console.log("[Favorite] Removing favorite...")
         const success = await removeFavorite(user.id, songId, session.access_token)
+        console.log("[Favorite] Remove result:", success)
         if (success) {
           setFavorites((prev) => {
             const next = new Set(prev)
@@ -136,13 +152,15 @@ export function SongList() {
           })
         }
       } else {
+        console.log("[Favorite] Adding favorite...")
         const success = await addFavorite(user.id, songId, session.access_token)
+        console.log("[Favorite] Add result:", success)
         if (success) {
           setFavorites((prev) => new Set(prev).add(songId))
         }
       }
     } catch (error) {
-      console.error("Error toggling favorite:", error)
+      console.error("[Favorite] Error toggling favorite:", error)
     } finally {
       setLoadingFavorite(null)
     }
@@ -264,17 +282,17 @@ export function SongList() {
                   {formatDuration(song.duration)}
                 </span>
 
-                {/* Favorite Button - Hidden on mobile */}
+                {/* Favorite Button */}
                 <Button
                   size="icon"
                   variant="ghost"
                   onClick={(e) => toggleFavorite(song.id, e)}
                   disabled={!user || loadingFavorite === song.id}
                   className={cn(
-                    "h-8 w-8 shrink-0 hidden md:inline-flex",
+                    "h-8 w-8 shrink-0",
                     favorites.has(song.id)
                       ? "text-accent"
-                      : "text-muted-foreground opacity-0 group-hover:opacity-100"
+                      : "text-muted-foreground md:opacity-0 md:group-hover:opacity-100"
                   )}
                 >
                   {loadingFavorite === song.id ? (
