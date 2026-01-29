@@ -7,12 +7,9 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   typescript: true,
 })
 
-// Price IDs from Stripe Dashboard
+// Price IDs from Stripe Dashboard (Vercel環境変数に合わせた変数名)
 export const STRIPE_PRICES = {
-  // 有料プラン
-  STANDARD: process.env.STRIPE_PRICE_STANDARD!,
-  EARLY_BIRD: process.env.STRIPE_PRICE_EARLY_BIRD!,
-  // 後方互換性のため残す（削除予定）
-  PREMIUM_MONTHLY: process.env.STRIPE_PRICE_PREMIUM_MONTHLY,
-  PREMIUM_YEARLY: process.env.STRIPE_PRICE_PREMIUM_YEARLY,
+  // 有料プラン（本番用）
+  STANDARD: process.env.STRIPE_PRICE_PREMIUM_MONTHLY!,                    // Standard Plan (¥980/月)
+  EARLY_BIRD: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_EARLY_BIRD!,        // Early Bird Plan (¥500/月)
 } as const
