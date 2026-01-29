@@ -256,25 +256,38 @@ export function SongList() {
             return (
               <div
                 key={song.id}
-                onClick={() => handlePlaySong(song)}
                 className={cn(
-                  "group flex items-center gap-3 rounded-lg px-4 py-3 cursor-pointer transition-all",
+                  "group flex items-center gap-3 rounded-lg px-4 py-3 transition-all",
                   isCurrentSong
                     ? "bg-accent/20 text-accent"
                     : "hover:bg-secondary/50"
                 )}
               >
-                {/* Play/Pause Icon */}
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/50 group-hover:bg-accent group-hover:text-accent-foreground transition-colors">
+                {/* Play/Pause Button - クリック可能エリア */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    console.log("[PlayBtn] Play button clicked!", { songId: song.id })
+                    handlePlaySong(song)
+                  }}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/50 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+                >
                   {isPlayingThis ? (
                     <Pause className="h-4 w-4" />
                   ) : (
                     <Play className="h-4 w-4 ml-0.5" />
                   )}
-                </div>
+                </button>
 
-                {/* Song Info */}
-                <div className="min-w-0 flex-1">
+                {/* Song Info - クリックで再生 */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    console.log("[SongInfo] Song info clicked!", { songId: song.id })
+                    handlePlaySong(song)
+                  }}
+                  className="min-w-0 flex-1 text-left cursor-pointer"
+                >
                   <p className={cn(
                     "truncate font-medium",
                     isCurrentSong ? "text-accent" : "text-foreground"
@@ -284,7 +297,7 @@ export function SongList() {
                   <p className="truncate text-sm text-muted-foreground">
                     {song.artist}
                   </p>
-                </div>
+                </button>
 
                 {/* Duration */}
                 <span className="hidden sm:block w-16 text-right text-sm tabular-nums text-muted-foreground">
@@ -294,26 +307,27 @@ export function SongList() {
                 {/* Favorite Button */}
                 <button
                   type="button"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    console.log("[FavoriteBtn] Button clicked!", { songId: song.id, user: !!user })
-                    toggleFavorite(song.id, e)
+                  onClick={() => {
+                    console.log("[FavoriteBtn] ★★★ Button clicked! ★★★", { songId: song.id, user: !!user })
+                    if (!user || !session?.access_token) {
+                      console.log("[FavoriteBtn] No user or token")
+                      return
+                    }
+                    toggleFavorite(song.id, { stopPropagation: () => {} } as React.MouseEvent)
                   }}
                   disabled={!user || loadingFavorite === song.id}
                   className={cn(
-                    "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors",
+                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors cursor-pointer",
                     "hover:bg-accent/20 disabled:opacity-50 disabled:cursor-not-allowed",
                     favorites.has(song.id)
-                      ? "text-accent"
+                      ? "text-accent bg-accent/10"
                       : "text-muted-foreground"
                   )}
-                  style={{ pointerEvents: 'auto' }}
                 >
                   {loadingFavorite === song.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin pointer-events-none" />
+                    <Loader2 className="h-5 w-5 animate-spin" />
                   ) : (
-                    <Heart className={cn("h-4 w-4 pointer-events-none", favorites.has(song.id) && "fill-current")} />
+                    <Heart className={cn("h-5 w-5", favorites.has(song.id) && "fill-current")} />
                   )}
                 </button>
               </div>
