@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server"
 
 // Protected routes that require authentication
 // Note: /favorites handles its own auth check in the component
-const protectedRoutes = ["/settings", "/profile"]
+const protectedRoutes = ["/profile"] // "/settings" は一時的に保護解除
 
 // Admin routes
 const adminRoutes = ["/admin"]

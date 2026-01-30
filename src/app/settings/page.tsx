@@ -39,8 +39,8 @@ export default function SettingsPage() {
       if (data.url) {
         window.location.href = data.url
       } else if (data.error) {
-        console.error("Portal error:", data.error)
-        alert("サブスクリプション情報が見つかりません。まずはプランに登録してください。")
+        console.error("Portal error:", data.error, data.details)
+        alert(`エラー: ${data.details || data.error}`)
       }
     } catch (error) {
       console.error("Portal error:", error)
