@@ -38,6 +38,7 @@ async function createCheckoutSession(
     customer: customerId,
     mode: "subscription",
     payment_method_types: ["card"],
+    payment_method_collection: "always", // トライアル時も支払い方法を必須で収集（期間終了後の自動課金を保証）
     line_items: [
       {
         price: priceId,
