@@ -10,19 +10,23 @@ export default function LandingPageLayout({ children }: { children: ReactNode })
     html.setAttribute("data-lp-page", "true")
     body.setAttribute("data-lp-page", "true")
 
-    // Enable scrolling (override globals.css fixed viewport)
-    html.style.position = "static"
-    html.style.overflow = "auto"
-    body.style.position = "static"
-    body.style.overflow = "auto"
+    // Enable scrolling with !important to override globals.css
+    html.style.setProperty("position", "static", "important")
+    html.style.setProperty("overflow", "auto", "important")
+    html.style.setProperty("height", "auto", "important")
+    body.style.setProperty("position", "static", "important")
+    body.style.setProperty("overflow", "auto", "important")
+    body.style.setProperty("height", "auto", "important")
 
     return () => {
       html.removeAttribute("data-lp-page")
       body.removeAttribute("data-lp-page")
-      html.style.position = "fixed"
-      html.style.overflow = "hidden"
-      body.style.position = "fixed"
-      body.style.overflow = "hidden"
+      html.style.removeProperty("position")
+      html.style.removeProperty("overflow")
+      html.style.removeProperty("height")
+      body.style.removeProperty("position")
+      body.style.removeProperty("overflow")
+      body.style.removeProperty("height")
     }
   }, [])
 
