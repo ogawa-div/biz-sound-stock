@@ -1,12 +1,14 @@
 import React from 'react';
-import { Music, ShieldCheck, Wallet, Zap, CheckCircle2 } from 'lucide-react';
+import { Music, ShieldCheck, Wallet, Zap, CheckCircle2, Smartphone, Radio } from 'lucide-react';
 
 export const IconMap: Record<string, React.FC<any>> = {
   Music,
   ShieldCheck,
   Wallet,
   Zap,
-  CheckCircle2
+  CheckCircle2,
+  Smartphone,
+  Radio
 };
 
 export const GetIcon = ({ name, className }: { name: string; className?: string }) => {

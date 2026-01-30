@@ -1,26 +1,54 @@
 import { Feature, PricingPlan, Testimonial } from '@/types/lp-types';
 
 export const SERVICE_NAME = "BizSound Stock";
-export const TAGLINE = "店舗のBGM、もう迷わない。";
-export const SUB_TAGLINE = "JASRAC申請不要。月額定額で著作権フリーの高品質BGMを流し放題。";
+export const TAGLINE = "お店のBGM、個人のスマホで流していませんか？";
+export const SUB_TAGLINE = "JASRAC申請不要・工事不要。店舗経営者のための、賢く安全な新しい選択肢。";
+
+// 比較セクション用のデータ
+export const COMPARISON_OPTIONS = [
+  {
+    id: 'option1',
+    title: '個人向け音楽アプリ',
+    icon: 'Smartphone',
+    pros: '手軽に始められる',
+    cons: '商用利用は利用規約違反のリスクあり',
+    highlight: false,
+  },
+  {
+    id: 'option2',
+    title: '従来のBGMサービス',
+    icon: 'Radio',
+    pros: '法的に安心',
+    cons: '導入コストや月額費用が高くつく',
+    highlight: false,
+  },
+  {
+    id: 'option3',
+    title: 'BizSound Stock',
+    icon: 'ShieldCheck',
+    pros: '規約準拠で安心・工事不要',
+    cons: '月額980円（税込）の圧倒的低価格',
+    highlight: true,
+  },
+];
 
 export const FEATURES: Feature[] = [
   {
     id: 'f1',
-    title: 'JASRAC申請・支払い不要',
-    description: '完全著作権フリーの楽曲のみを使用しているため、面倒な著作権処理や別途支払いは一切不要です。',
+    title: '完全著作権フリー',
+    description: 'JASRACへの申請・支払いが不要。面倒な著作権処理なしで、安心して店舗BGMとしてご利用いただけます。',
     icon: 'ShieldCheck'
   },
   {
     id: 'f2',
-    title: '24/7ストリーミング',
-    description: '150曲以上の高品質BGMが24時間365日、途切れることなく流れ続けます。店舗の雰囲気を常に最適な状態に保ちます。',
+    title: '工事不要・すぐ使える',
+    description: 'インターネット環境があれば、今すぐスタート。専用機器の設置や工事は一切不要です。',
     icon: 'Zap'
   },
   {
     id: 'f3',
-    title: '圧倒的なコストパフォーマンス',
-    description: '従来の有線放送やCD購入に比べ、月額2,980円で無制限再生。経費削減に貢献します。',
+    title: '月額980円（税込）',
+    description: '一般的なBGMサービスの数分の一の価格。圧倒的な低価格で、経費削減に貢献します。',
     icon: 'Wallet'
   }
 ];
@@ -29,7 +57,7 @@ export const PLANS: PricingPlan[] = [
   {
     name: 'Free',
     price: '0',
-    features: ['全曲リスト閲覧', '1曲あたり30秒まで再生', 'プレビュー再生のみ'],
+    features: ['全曲リスト閲覧', '1曲あたり30秒までプレビュー再生'],
     recommended: false
   },
   {
@@ -39,21 +67,10 @@ export const PLANS: PricingPlan[] = [
       '全曲フル再生',
       '無制限の音楽再生',
       'お気に入り機能',
-      '高音質ストリーミング'
+      '高音質ストリーミング',
+      '14日間無料トライアル'
     ],
     recommended: true
-  },
-  {
-    name: 'Early Bird',
-    price: '500',
-    features: [
-      '全曲フル再生',
-      '無制限の音楽再生',
-      'お気に入り機能',
-      '高音質ストリーミング',
-      'リリース記念キャンペーン価格'
-    ],
-    recommended: false
   }
 ];
 

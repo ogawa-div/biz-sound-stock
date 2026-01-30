@@ -2,9 +2,9 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { SERVICE_NAME, TAGLINE, SUB_TAGLINE, FEATURES, PLANS } from '@/lib/lp-constants';
+import { SERVICE_NAME, SUB_TAGLINE, FEATURES, PLANS, COMPARISON_OPTIONS } from '@/lib/lp-constants';
 import { GetIcon } from './icons';
-import { ArrowRight, Music } from 'lucide-react';
+import { ArrowRight, Music, AlertTriangle, CheckCircle2, X } from 'lucide-react';
 
 const AbstractTheme: React.FC = () => {
   return (
@@ -35,7 +35,7 @@ const AbstractTheme: React.FC = () => {
             href="/signup" 
             className="bg-amber-600 text-white rounded-full px-6 py-4 font-sans font-bold hover:scale-110 transition-transform shadow-lg"
           >
-            無料で試す
+            14日間無料で試す
           </Link>
         </div>
       </nav>
@@ -45,10 +45,22 @@ const AbstractTheme: React.FC = () => {
         <div className="max-w-6xl mx-auto grid md:grid-cols-12 gap-12 items-center">
           <div className="md:col-span-7 relative">
             <div className="absolute -top-10 -left-10 w-32 h-32 bg-yellow-400 rounded-full mix-blend-multiply opacity-80 animate-pulse"></div>
-            <h1 className="text-6xl md:text-8xl leading-[0.85] mb-8 relative z-10 font-black uppercase">
-              店舗BGMの<br/>
-              <span className="text-amber-600">新しい</span><br/>
-              スタンダード
+            
+            {/* 問題提起のキャッチコピー */}
+            <div className="bg-amber-100 border-l-4 border-amber-600 p-4 mb-6 transform -rotate-1 relative z-10">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
+                <p className="font-bold text-amber-800 text-lg">
+                  お店のBGM、個人のスマホで流していませんか？<br/>
+                  <span className="text-base font-medium">それは規約違反のリスクがあります。</span>
+                </p>
+              </div>
+            </div>
+            
+            <h1 className="text-5xl md:text-7xl leading-[0.9] mb-8 relative z-10 font-black uppercase">
+              法的リスクゼロの<br/>
+              店舗BGMを<br/>
+              <span className="text-amber-600">月額980円</span>から
             </h1>
             <p className="font-sans font-bold text-slate-600 text-xl max-w-md bg-white p-4 border-2 border-black shadow-[4px_4px_0px_#000] transform rotate-1">
               {SUB_TAGLINE}
@@ -58,7 +70,7 @@ const AbstractTheme: React.FC = () => {
                 href="/signup"
                 className="bg-black text-white px-10 py-4 text-xl uppercase hover:bg-slate-800 transition-colors transform -rotate-1 hover:rotate-0 inline-block text-center"
               >
-                今すぐ始める
+                14日間無料で試してみる
               </Link>
               <Link 
                 href="/"
@@ -79,18 +91,65 @@ const AbstractTheme: React.FC = () => {
               </div>
               {/* Torn Paper Effect */}
               <div className="absolute -bottom-10 -right-10 bg-white p-4 font-sans font-bold text-sm shadow-xl transform -rotate-6 border border-gray-200">
-                <p>BizSound Radio</p>
-                <p>24/7 Stream</p>
+                <p>厳選された高品質BGM</p>
+                <p>24/7 ストリーミング</p>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features - Cutout style */}
+      {/* Comparison Section - 3つの選択肢 */}
       <section className="py-32 px-6 bg-slate-800 text-white relative">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-5xl mb-16 text-center transform -rotate-1 font-black uppercase">選ばれる理由</h2>
+          <h2 className="text-4xl md:text-5xl mb-6 text-center transform -rotate-1 font-black uppercase">店舗BGMの選択肢</h2>
+          <p className="text-center text-slate-300 mb-16 text-lg">あなたのお店に最適な方法はどれですか？</p>
+          
+          <div className="grid md:grid-cols-3 gap-8">
+            {COMPARISON_OPTIONS.map((option) => (
+              <div key={option.id} className="relative group">
+                <div className={`absolute inset-0 ${option.highlight ? 'bg-amber-600' : 'bg-slate-600'} transform translate-x-2 translate-y-2 group-hover:translate-x-4 group-hover:translate-y-4 transition-transform`}></div>
+                <div className={`relative bg-white text-slate-900 p-8 border-2 ${option.highlight ? 'border-amber-600' : 'border-black'} h-full`}>
+                  <div className={`text-4xl mb-4 ${option.highlight ? 'text-amber-600' : 'text-slate-400'}`}>
+                    <GetIcon name={option.icon} className="w-10 h-10" />
+                  </div>
+                  <h3 className="text-xl uppercase mb-4 leading-tight font-bold">{option.title}</h3>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
+                      <span className="text-sm text-slate-600">{option.pros}</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      {option.highlight ? (
+                        <CheckCircle2 className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                      ) : (
+                        <X className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                      )}
+                      <span className={`text-sm ${option.highlight ? 'text-amber-600 font-bold' : 'text-slate-600'}`}>
+                        {option.cons}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {option.highlight && (
+                    <div className="mt-6 pt-4 border-t border-slate-200">
+                      <span className="inline-block bg-amber-600 text-white text-xs font-bold px-3 py-1 uppercase">
+                        おすすめ
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Features - Cutout style */}
+      <section className="py-32 px-6 bg-gray-100 relative">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-4xl md:text-5xl mb-16 text-center transform -rotate-1 font-black uppercase text-slate-900">BizSound Stockの特徴</h2>
           <div className="grid md:grid-cols-3 gap-12">
             {FEATURES.map((feature) => (
               <div key={feature.id} className="relative group">
@@ -110,23 +169,25 @@ const AbstractTheme: React.FC = () => {
 
 
       {/* Pricing - Poster Style */}
-      <section className="py-32 px-6 bg-gray-100" id="pricing">
+      <section className="py-32 px-6 bg-slate-800" id="pricing">
         <div className="max-w-4xl mx-auto">
           <div className="bg-white border-4 border-black p-8 md:p-16 shadow-[20px_20px_0px_rgba(30,41,59,0.2)]">
-            <h2 className="text-6xl text-center mb-12 uppercase leading-none font-black text-slate-900">料金<br/>プラン</h2>
+            <h2 className="text-5xl md:text-6xl text-center mb-4 uppercase leading-none font-black text-slate-900">料金プラン</h2>
+            <p className="text-center text-slate-500 mb-12">シンプルで分かりやすい料金体系</p>
             
             <div className="space-y-8">
               {PLANS.map((plan) => (
-                <div key={plan.name} className="flex flex-col md:flex-row items-center gap-4 border-b-4 border-black pb-4 last:border-0">
-                  <div className="bg-black text-white text-xl px-4 py-2 transform -rotate-2 w-full md:w-auto text-center font-bold uppercase">
+                <div key={plan.name} className={`flex flex-col md:flex-row items-center gap-4 border-b-4 pb-6 last:border-0 ${plan.recommended ? 'border-amber-600' : 'border-black'}`}>
+                  <div className={`${plan.recommended ? 'bg-amber-600' : 'bg-black'} text-white text-xl px-4 py-2 transform -rotate-2 w-full md:w-auto text-center font-bold uppercase`}>
                     {plan.name}
+                    {plan.recommended && <span className="ml-2 text-xs">★ おすすめ</span>}
                   </div>
                   <div className="flex-1 font-sans font-bold text-slate-500 text-sm text-center md:text-left">
-                    {plan.features.join(' + ')}
+                    {plan.features.join(' / ')}
                   </div>
                   <div className="text-4xl text-amber-600 font-black">
                     ¥{plan.price}
-                    {plan.price !== '0' && <span className="text-lg text-slate-500">/月</span>}
+                    {plan.price !== '0' && <span className="text-lg text-slate-500">（税込）/月</span>}
                   </div>
                 </div>
               ))}
@@ -134,30 +195,32 @@ const AbstractTheme: React.FC = () => {
 
             <div className="mt-12 text-center">
               <Link 
-                href="/pricing"
-                className="inline-block bg-amber-600 text-white text-2xl px-12 py-3 hover:bg-black transition-colors shadow-[8px_8px_0px_#000] font-bold uppercase"
+                href="/signup"
+                className="inline-block bg-amber-600 text-white text-2xl px-12 py-4 hover:bg-black transition-colors shadow-[8px_8px_0px_#000] font-bold uppercase"
               >
-                今すぐ始める
+                14日間無料で試してみる
               </Link>
+              <p className="mt-4 text-sm text-slate-500">クレジットカード登録後、14日間は無料でお試しいただけます</p>
             </div>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-32 px-6 bg-slate-800 text-white">
+      <section className="py-32 px-6 bg-gray-100">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-5xl md:text-6xl mb-8 font-black uppercase transform -rotate-1">
-            今すぐ始めませんか？
+          <h2 className="text-4xl md:text-5xl mb-6 font-black uppercase transform -rotate-1 text-slate-900">
+            安心・安全・低価格
           </h2>
-          <p className="text-xl text-slate-300 mb-12 font-sans">
+          <p className="text-xl text-slate-600 mb-8 font-sans">
+            規約違反のリスクなし。工事も不要。<br/>
             14日間の無料トライアルで、すべての機能をお試しください。
           </p>
           <Link
             href="/signup"
-            className="inline-block bg-amber-600 text-white text-2xl px-12 py-4 hover:bg-white hover:text-black transition-colors shadow-[8px_8px_0px_#000] font-bold uppercase transform -rotate-1 hover:rotate-0"
+            className="inline-block bg-amber-600 text-white text-2xl px-12 py-4 hover:bg-slate-800 transition-colors shadow-[8px_8px_0px_#000] font-bold uppercase transform -rotate-1 hover:rotate-0"
           >
-            無料で始める
+            14日間無料で試してみる
             <ArrowRight className="inline-block ml-2 w-6 h-6" />
           </Link>
         </div>
@@ -169,7 +232,7 @@ const AbstractTheme: React.FC = () => {
             {SERVICE_NAME}
           </div>
           <div className="font-sans text-sm text-gray-400">
-            © 2024 {SERVICE_NAME}. All Rights Reserved.
+            © 2026 {SERVICE_NAME}. All Rights Reserved.
           </div>
         </div>
       </footer>
