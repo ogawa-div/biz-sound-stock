@@ -3,7 +3,7 @@
 import type React from "react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { Radio, Heart, LogIn, LogOut, User, Menu, X } from "lucide-react"
+import { Radio, Heart, LogIn, LogOut, User, Menu, X, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth/context"
@@ -123,6 +123,18 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
                 </p>
               </div>
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start"
+              onClick={() => {
+                onClose?.()
+                router.push("/settings")
+              }}
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              設定
+            </Button>
             <Button
               variant="outline"
               size="sm"
