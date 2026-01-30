@@ -3,6 +3,9 @@ import { stripe } from "@/lib/stripe/config"
 import { createClient } from "@supabase/supabase-js"
 import Stripe from "stripe"
 
+// Force Node.js runtime (required for Stripe webhook signature verification)
+export const runtime = "nodejs"
+
 // Create Supabase admin client
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
