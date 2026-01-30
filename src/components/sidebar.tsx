@@ -68,7 +68,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
             <p className="mt-1 text-sm text-muted-foreground">店舗向けBGMサービス</p>
           </div>
           {onClose && (
-            <button onClick={onClose} className="rounded-md p-2 hover:bg-secondary md:hidden">
+            <button onClick={onClose} className="rounded-md p-2 hover:bg-white/10 transition-colors duration-200 cursor-pointer active:scale-95 md:hidden">
               <X className="h-5 w-5" />
             </button>
           )}
@@ -90,10 +90,10 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
                     key={item.id}
                     onClick={() => handleMenuClick(item)}
                     className={cn(
-                      "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                      "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all duration-200 cursor-pointer",
                       isActive
                         ? "bg-primary text-primary-foreground"
-                        : "text-foreground hover:bg-secondary",
+                        : "text-foreground hover:bg-white/10 hover:text-white active:scale-[0.98]",
                     )}
                   >
                     <Icon className="h-5 w-5" />
@@ -175,9 +175,9 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
                 onClose?.()
                 window.location.href = "/signup"
               }}
-              className="block w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="block w-full text-center text-sm text-muted-foreground hover:text-white transition-colors duration-200 cursor-pointer"
             >
-              アカウントをお持ちでない方は<span className="text-accent underline">新規登録</span>
+              アカウントをお持ちでない方は<span className="text-accent underline hover:text-accent/80">新規登録</span>
             </button>
           </div>
         )}
@@ -190,7 +190,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 export function MobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
   return (
     <header className="fixed left-0 right-0 top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-card px-4 md:hidden">
-      <button onClick={onMenuClick} className="rounded-md p-2 hover:bg-secondary">
+      <button onClick={onMenuClick} className="rounded-md p-2 hover:bg-white/10 transition-colors duration-200 cursor-pointer active:scale-95">
         <Menu className="h-5 w-5" />
       </button>
       <h1 className="text-lg font-bold text-foreground">BizSound Stock</h1>

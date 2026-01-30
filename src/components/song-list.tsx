@@ -201,7 +201,7 @@ export function SongList() {
           size="lg"
           onClick={handlePlayAll}
           disabled={songs.length === 0}
-          className="gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
+          className="gap-2 bg-accent text-accent-foreground hover:bg-accent/90 hover:brightness-110"
         >
           <Shuffle className="h-5 w-5" />
           シャッフル再生
@@ -230,17 +230,17 @@ export function SongList() {
               <div
                 key={song.id}
                 className={cn(
-                  "group flex items-center gap-3 rounded-lg px-4 py-3 transition-all",
+                  "group flex items-center gap-3 rounded-lg px-4 py-3 transition-all duration-200",
                   isCurrentSong
                     ? "bg-accent/20 text-accent"
-                    : "hover:bg-secondary/50"
+                    : "hover:bg-white/5"
                 )}
               >
                 {/* Play/Pause Button */}
                 <button
                   type="button"
                   onClick={() => handlePlaySong(song)}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/50 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/50 hover:bg-accent hover:text-accent-foreground transition-all duration-200 cursor-pointer active:scale-95"
                 >
                   {isPlayingThis ? (
                     <Pause className="h-4 w-4" />
@@ -253,7 +253,7 @@ export function SongList() {
                 <button
                   type="button"
                   onClick={() => handlePlaySong(song)}
-                  className="min-w-0 flex-1 text-left cursor-pointer"
+                  className="min-w-0 flex-1 text-left cursor-pointer hover:opacity-80 transition-opacity duration-200"
                 >
                   <p className={cn(
                     "truncate font-medium",
@@ -277,8 +277,8 @@ export function SongList() {
                   onClick={() => toggleFavorite(song.id)}
                   disabled={!user || loadingFavorite === song.id}
                   className={cn(
-                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors cursor-pointer",
-                    "hover:bg-accent/20 disabled:opacity-50 disabled:cursor-not-allowed",
+                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-200 cursor-pointer active:scale-95",
+                    "hover:bg-accent/20 hover:text-accent disabled:opacity-50 disabled:cursor-not-allowed",
                     favorites.has(song.id)
                       ? "text-accent bg-accent/10"
                       : "text-muted-foreground"

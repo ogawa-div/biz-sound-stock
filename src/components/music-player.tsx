@@ -186,7 +186,7 @@ export function MusicPlayer() {
           <button 
             type="button"
             onClick={toggleFavorite}
-            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full transition-colors hover:bg-accent/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full transition-all duration-200 hover:bg-accent/20 hover:text-accent cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={!currentSong || !user || isLoadingFavorite}
           >
             {isLoadingFavorite ? (
@@ -203,7 +203,7 @@ export function MusicPlayer() {
               <Button 
                 size="icon" 
                 variant="ghost" 
-                className="h-8 w-8"
+                className="h-8 w-8 hover:text-white hover:bg-white/10"
                 onClick={previous}
                 disabled={!currentSong}
               >
@@ -213,7 +213,7 @@ export function MusicPlayer() {
                 size="icon"
                 onClick={toggle}
                 disabled={!currentSong}
-                className="h-10 w-10 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                className="h-10 w-10 rounded-full bg-accent text-accent-foreground hover:bg-accent/90 hover:brightness-110 disabled:opacity-50"
               >
                 {isPlaying ? (
                   <Pause className="h-5 w-5 fill-current" />
@@ -224,7 +224,7 @@ export function MusicPlayer() {
               <Button 
                 size="icon" 
                 variant="ghost" 
-                className="h-8 w-8"
+                className="h-8 w-8 hover:text-white hover:bg-white/10"
                 onClick={next}
                 disabled={!currentSong}
               >
@@ -255,7 +255,7 @@ export function MusicPlayer() {
               size="icon" 
               variant="ghost"
               onClick={toggleMute}
-              className="h-8 w-8"
+              className="h-8 w-8 hover:text-white hover:bg-white/10"
             >
               {isMuted || volume === 0 ? (
                 <VolumeX className="h-5 w-5 text-muted-foreground" />
