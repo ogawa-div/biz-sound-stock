@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -16,12 +16,50 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/lib/auth/context"
 import { createClient } from "@/lib/supabase/client"
+import type { Profile } from "@/types/database"
 
 export default function SettingsPage() {
   const router = useRouter()
-  const { user, profile, isLoading: authLoading } = useAuth()
+  const { user, session, isLoading: authLoading } = useAuth()
   const [isLoadingPortal, setIsLoadingPortal] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [profileLoading, setProfileLoading] = useState(true)
+
+  // プロフィールを直接取得（RLS対応）
+  useEffect(() => {
+    async function fetchProfile() {
+      if (!user || !session?.access_token) {
+        setProfileLoading(false)
+        return
+      }
+
+      try {
+        const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}&select=*`
+        const response = await fetch(url, {
+          headers: {
+            "apikey": process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          if (data?.[0]) {
+            setProfile(data[0])
+          }
+        }
+      } catch (error) {
+        console.error("Profile fetch error:", error)
+      } finally {
+        setProfileLoading(false)
+      }
+    }
+
+    if (!authLoading) {
+      fetchProfile()
+    }
+  }, [user, session, authLoading])
 
   const handleManageSubscription = async () => {
     if (!user) return
@@ -66,6 +104,9 @@ export default function SettingsPage() {
   // Subscription status display
   const getSubscriptionStatusDisplay = () => {
     const status = profile?.subscription_status
+    const plan = profile?.subscription_plan
+    
+    // subscription_statusが有効な場合
     if (status === "active") {
       return { text: "有効", color: "text-green-500", badge: "bg-green-500/10" }
     }
@@ -75,13 +116,23 @@ export default function SettingsPage() {
     if (status === "past_due") {
       return { text: "支払い遅延", color: "text-red-500", badge: "bg-red-500/10" }
     }
+    
+    // subscription_planがpremiumの場合（statusがnoneでもプランがある場合）
+    if (plan === "premium" || plan === "enterprise") {
+      return { text: "有効", color: "text-green-500", badge: "bg-green-500/10" }
+    }
+    
     return { text: "未登録", color: "text-muted-foreground", badge: "bg-muted" }
   }
 
   const subscriptionStatus = getSubscriptionStatusDisplay()
-  const isPremium = profile?.subscription_status === "active" || profile?.subscription_status === "trialing"
+  const isPremium = 
+    profile?.subscription_status === "active" || 
+    profile?.subscription_status === "trialing" ||
+    profile?.subscription_plan === "premium" ||
+    profile?.subscription_plan === "enterprise"
 
-  if (authLoading) {
+  if (authLoading || profileLoading) {
     return (
       <div className="flex min-h-safe-screen items-center justify-center bg-background pt-safe">
         <Loader2 className="h-8 w-8 animate-spin text-accent" />
