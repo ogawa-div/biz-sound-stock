@@ -226,8 +226,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ============================================
-  // CORE: Aggressive Resume (iOS PWA Force Reload)
-  // シンプルな Try-Catch-Reload パターン
+  // CORE: Aggressive Resume (iOS PWA Hard Reset)
+  // currentTime復元なし、srcトグルによる完全リセット
   // ============================================
   const aggressiveResume = useCallback(async () => {
     const audio = audioRef.current;
@@ -238,24 +238,23 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       await audio.play();
       // 成功した場合、handlePlayイベントでUI更新される
     } catch (error) {
-      console.warn("Standard play failed, attempting Force Reload:", error);
+      console.warn("Play failed, forcing Hard Reset:", error);
       
-      // 2. エラーが出たら、即座にリロードして再接続
       try {
-        const savedTime = audio.currentTime;
-        const savedSrc = audio.src;
+        // 2. ハードリセット（srcを付け直して叩き起こす）
+        const currentSrc = audio.src;
+        audio.src = "";           // 一旦切断
+        audio.load();             // 読み込みリセット
+        audio.src = currentSrc;   // 再接続
+        audio.load();             // 再読み込み
         
-        // 物理的に再接続
-        audio.src = "";
-        audio.src = savedSrc;
-        audio.load();
-        audio.currentTime = savedTime;
+        // 時間復元はしない（Safariでエラーの温床になるため）
+        // 曲が最初からになっても構わない
         
-        // 再度再生
-        await audio.play();
-        console.log("Force Reload successful");
+        await audio.play();       // 再生
+        console.log("Hard Reset successful");
       } catch (retryError) {
-        console.error("Force Reload failed:", retryError);
+        console.error("Hard Reset failed:", retryError);
         setIsPlaying(false);
         updateMediaSessionState(false);
       }
