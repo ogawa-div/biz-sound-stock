@@ -213,7 +213,11 @@ export function SongList() {
         {/* Album Art + Text Info */}
         <div className="flex items-center gap-6">
           <div className="flex h-32 w-32 md:h-40 md:w-40 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-accent/60 to-primary/60 shadow-xl">
-            <Music className="h-14 w-14 md:h-16 md:w-16 text-foreground" />
+            <img
+              src="/icons/icon.svg"
+              alt="BizSound Stock"
+              className="h-14 w-14 md:h-16 md:w-16"
+            />
           </div>
           <div>
             <p className="text-sm font-medium uppercase tracking-widest text-accent">STATION</p>
