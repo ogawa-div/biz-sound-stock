@@ -212,11 +212,11 @@ export function SongList() {
       <div className="mb-8 flex flex-col gap-6">
         {/* Album Art + Text Info */}
         <div className="flex items-center gap-6">
-          <div className="flex h-32 w-32 md:h-40 md:w-40 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-accent/60 to-primary/60 shadow-xl">
+          <div className="h-32 w-32 md:h-40 md:w-40 shrink-0 rounded-lg shadow-xl overflow-hidden">
             <img
               src="/icons/icon.svg"
               alt="BizSound Stock"
-              className="h-14 w-14 md:h-16 md:w-16"
+              className="w-full h-full object-cover"
             />
           </div>
           <div>
