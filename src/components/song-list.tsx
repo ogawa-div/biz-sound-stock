@@ -207,13 +207,13 @@ export function SongList() {
       {/* Header + Daily Mix Button Container */}
       <div className="mb-8 flex flex-col gap-6">
         {/* Album Art + Text Info + PC版ボタン */}
-        <div className="flex items-center gap-6">
-          <div className="flex h-32 w-32 md:h-48 md:w-48 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-accent/60 to-primary/60 shadow-xl">
-            <Music className="h-14 w-14 md:h-20 md:w-20 text-foreground" />
+        <div className="flex items-center gap-6 md:gap-8">
+          <div className="flex h-32 w-32 md:h-40 md:w-40 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-accent/60 to-primary/60 shadow-xl">
+            <Music className="h-14 w-14 md:h-16 md:w-16 text-foreground" />
           </div>
-          <div className="flex-1">
+          <div>
             <p className="text-sm font-medium uppercase tracking-widest text-accent">STATION</p>
-            <h1 className="mt-2 text-2xl md:text-4xl font-bold tracking-tight">BizSound Radio</h1>
+            <h1 className="mt-2 text-2xl md:text-3xl font-bold tracking-tight">BizSound Radio</h1>
             <p className="mt-2 text-muted-foreground">
               24/7 Store Music Stream
             </p>
@@ -222,24 +222,27 @@ export function SongList() {
             </p>
           </div>
 
-          {/* PC版: 丸い再生ボタン + テキストをグループ化 */}
+          {/* PC版: 丸い再生ボタン + テキスト情報をグループ化 */}
           <div className="hidden md:flex items-center gap-4">
             <button
               onClick={handleDailyMixToggle}
               disabled={songs.length === 0}
-              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg cursor-pointer transition-all duration-300 hover:scale-105 hover:brightness-110 hover:shadow-xl hover:shadow-accent/20 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg cursor-pointer transition-all duration-300 hover:scale-105 hover:brightness-110 hover:shadow-xl hover:shadow-accent/20 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
               title={isPlaying ? "一時停止" : (dayInfo ? dayInfo.title : "Daily Mix")}
             >
               {isPlaying ? (
-                <Pause className="h-7 w-7" />
+                <Pause className="h-6 w-6" />
               ) : (
-                <Play className="h-7 w-7 ml-0.5" />
+                <Play className="h-6 w-6 ml-0.5" />
               )}
             </button>
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-amber-400" />
-              <span className="font-medium text-amber-400">
+            <div className="flex flex-col">
+              <span className="flex items-center gap-1.5 font-medium text-amber-400">
+                <Sparkles className="h-4 w-4" />
                 {dayInfo ? dayInfo.title : "Daily Mix"}
+              </span>
+              <span className="text-xs text-slate-400">
+                {dayInfo ? dayInfo.sub : "Curated for store atmosphere"}
               </span>
             </div>
           </div>
