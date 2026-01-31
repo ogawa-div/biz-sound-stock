@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { SERVICE_NAME, SUB_TAGLINE, FEATURES, PLANS, COMPARISON_OPTIONS } from '@/lib/lp-constants';
 import { GetIcon } from './icons';
-import { ArrowRight, Music, AlertTriangle, CheckCircle2, X } from 'lucide-react';
+import { ArrowRight, AlertTriangle, CheckCircle2, X } from 'lucide-react';
 
 const AbstractTheme: React.FC = () => {
   return (
@@ -85,8 +85,8 @@ const AbstractTheme: React.FC = () => {
             <div className="relative w-full aspect-square">
               <div className="absolute inset-0 bg-slate-800 transform rotate-3"></div>
               <div className="absolute inset-0 bg-amber-600 transform -rotate-2 scale-95"></div>
-              <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-cyan-50 to-blue-50 flex items-center justify-center transform rotate-1 border-4 border-white">
-                <Music className="w-32 h-32 text-slate-800 opacity-50" />
+              <div className="absolute inset-0 w-full h-full transform rotate-1 border-4 border-white overflow-hidden">
+                <img src="/icons/icon.svg" alt="BizSound Stock" className="w-full h-full object-cover" />
               </div>
               {/* Torn Paper Effect */}
               <div className="absolute -bottom-10 -right-10 bg-white p-4 font-sans font-bold text-sm shadow-xl transform -rotate-6 border border-gray-200">
