@@ -74,6 +74,19 @@ const getAudio = (): HTMLAudioElement => {
   return globalAudio;
 };
 
+// Safari/iOS検出
+const isSafari = (): boolean => {
+  if (typeof window === "undefined") return false;
+  const ua = navigator.userAgent;
+  return /Safari/.test(ua) && !/Chrome/.test(ua);
+};
+
+const isIOS = (): boolean => {
+  if (typeof window === "undefined") return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+};
+
 // ============================================
 // Helper Functions
 // ============================================
@@ -203,17 +216,45 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ============================================
-  // MODIFIED: Progress Tracking with readyState check
+  // MODIFIED: Progress Tracking with strict validation
   // ============================================
+  const lastProgressRef = useRef<number>(0);
+  const stuckCountRef = useRef<number>(0);
+  
   const startProgressTracking = useCallback(() => {
     stopProgressTracking();
+    lastProgressRef.current = 0;
+    stuckCountRef.current = 0;
+    
     progressIntervalRef.current = setInterval(() => {
       const audio = audioRef.current;
-      // MODIFIED: readyState >= 3 (HAVE_FUTURE_DATA) を条件に追加
-      // これで「データがないのに時間が進む」現象を防止
+      
+      // 基本条件: 再生中 かつ データ準備完了
       if (audio && !audio.paused && audio.readyState >= 3) {
-        setProgress(audio.currentTime);
-        updateMediaSessionPosition(audio.currentTime, audio.duration || 0);
+        const currentTime = audio.currentTime;
+        
+        // Safari PWA対策: 時間が進んでいるかチェック
+        if (Math.abs(currentTime - lastProgressRef.current) < 0.01) {
+          // 時間が進んでいない
+          stuckCountRef.current++;
+          
+          if (stuckCountRef.current >= 3) {
+            // 3回連続で進んでいない = サイレント状態の可能性
+            console.log("Progress stuck, audio may be silent");
+            // UIを一時停止状態に同期（ユーザーに再度押させる）
+            setIsPlaying(false);
+            updateMediaSessionState(false);
+            stopProgressTracking();
+            return;
+          }
+        } else {
+          // 正常に進んでいる
+          stuckCountRef.current = 0;
+        }
+        
+        lastProgressRef.current = currentTime;
+        setProgress(currentTime);
+        updateMediaSessionPosition(currentTime, audio.duration || 0);
       }
     }, 500);
   }, [stopProgressTracking]);
@@ -250,7 +291,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ============================================
-  // NEW: Safe Play Method (Race Condition対策の核心)
+  // NEW: Safe Play Method (Race Condition対策 + Safari PWA対策)
   // ============================================
   const safePlay = useCallback(async (newSrc?: string): Promise<boolean> => {
     const audio = audioRef.current;
@@ -277,7 +318,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         audio.src = newSrc;
         
         // Safari用: 明示的にloadを呼び、canplay を待つ
-        // これにより「メディア未準備」エラーを防止
         await new Promise<void>((resolve, reject) => {
           const onCanPlay = () => {
             audio.removeEventListener("canplay", onCanPlay);
@@ -299,16 +339,80 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           setTimeout(() => {
             audio.removeEventListener("canplay", onCanPlay);
             audio.removeEventListener("error", onError);
-            // タイムアウトでもresolveして再生を試みる
             resolve();
           }, 10000);
         });
         
-        // src変更完了
         isChangingSourceRef.current = false;
+      } else if (audio.src && (isSafari() || isIOS())) {
+        // ============================================
+        // Safari PWA 対策: 既存srcでの再生再開時
+        // バックグラウンドからの復帰でオーディオセッションが
+        // サスペンドされている場合、強制的にリフレッシュする
+        // ============================================
+        console.log("safePlay: Safari/iOS detected, refreshing audio session");
+        
+        const currentTime = audio.currentTime;
+        const currentSrc = audio.src;
+        
+        // Safari用トリック1: currentTimeを再設定してストリームを起こす
+        audio.currentTime = currentTime;
+        
+        // それでもダメな場合に備えて、再生後に監視する
+        const playPromise = audio.play();
+        currentPlayPromiseRef.current = playPromise;
+        
+        await playPromise;
+        
+        // Safari PWA対策: 再生が実際に機能しているか確認
+        // 500ms後にcurrentTimeが変化していなければ、強制リロード
+        await new Promise<void>((resolve) => {
+          const checkTime = audio.currentTime;
+          setTimeout(async () => {
+            // 時間が全く進んでいない、かつ再生中のはず = 実際には再生されていない
+            if (!audio.paused && Math.abs(audio.currentTime - checkTime) < 0.1) {
+              console.log("safePlay: Audio stuck, forcing reload");
+              
+              // 強制リロード
+              isChangingSourceRef.current = true;
+              audio.src = "";
+              audio.src = currentSrc;
+              audio.load();
+              
+              // canplay待機
+              await new Promise<void>((res) => {
+                const onReady = () => {
+                  audio.removeEventListener("canplay", onReady);
+                  res();
+                };
+                audio.addEventListener("canplay", onReady, { once: true });
+                setTimeout(() => {
+                  audio.removeEventListener("canplay", onReady);
+                  res();
+                }, 5000);
+              });
+              
+              // 元の位置にシーク
+              audio.currentTime = currentTime;
+              isChangingSourceRef.current = false;
+              
+              // 再度再生
+              try {
+                await audio.play();
+                console.log("safePlay: Forced reload successful");
+              } catch (e) {
+                console.error("safePlay: Forced reload failed:", e);
+              }
+            }
+            resolve();
+          }, 500);
+        });
+        
+        console.log("safePlay: Safari playback started successfully");
+        return true;
       }
 
-      // 再生実行
+      // 通常の再生実行
       const playPromise = audio.play();
       currentPlayPromiseRef.current = playPromise;
 
@@ -712,6 +816,36 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     // ============================================
+    // visibilitychange: バックグラウンドからの復帰検知
+    // Safari PWA対策: 復帰時にオーディオ状態を同期
+    // ============================================
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        console.log("App became visible, checking audio state");
+        
+        // オーディオの実際の状態とReact状態を同期
+        const audioActuallyPlaying = !audio.paused;
+        
+        // Safari PWA: "再生中"のはずなのに音が出ていない可能性をチェック
+        if (audioActuallyPlaying && (isSafari() || isIOS())) {
+          // 500ms後にcurrentTimeが進んでいるか確認
+          const checkTime = audio.currentTime;
+          setTimeout(() => {
+            if (!audio.paused && Math.abs(audio.currentTime - checkTime) < 0.1) {
+              // 時間が進んでいない = サイレント状態
+              console.log("visibilityChange: Audio silent, updating UI to paused");
+              setIsPlaying(false);
+              updateMediaSessionState(false);
+              stopProgressTracking();
+            }
+          }, 500);
+        }
+      }
+    };
+    
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // ============================================
     // Cleanup
     // ============================================
     return () => {
@@ -722,6 +856,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audio.removeEventListener("error", handleError);
       audio.removeEventListener("waiting", handleWaiting);
       audio.removeEventListener("canplay", handleCanPlay);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       stopProgressTracking();
       clearPreviewTimeout();
     };
