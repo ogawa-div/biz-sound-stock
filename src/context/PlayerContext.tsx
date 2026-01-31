@@ -348,10 +348,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const nextSong = currentQueue[nextIndex];
 
     if (nextSong) {
-      // Update Media Session immediately for background continuity
-      updateMediaSession(nextSong, { play, pause, next, previous: () => {} });
-      updateMediaSessionState(true);
-
       // Check for cached URL
       const cache = nextSongCacheRef.current;
       if (cache && cache.songId === nextSong.id) {
@@ -364,8 +360,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       } else {
         loadAndPlaySong(nextSong, nextIndex);
       }
+      // NOTE: MediaSession state is updated via audio 'play' event
     }
-  }, [loadAndPlaySong, play, pause]);
+  }, [loadAndPlaySong]);
 
   const previous = useCallback(() => {
     const audio = audioRef.current;
@@ -520,7 +517,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         // ============================================
         console.log("Using cached URL for instant playback");
 
-        // 1. Update Media Session IMMEDIATELY (sync)
+        // 1. Update Media Session metadata only (state will be set by play event)
         if ("mediaSession" in navigator) {
           try {
             navigator.mediaSession.metadata = new MediaMetadata({
@@ -532,7 +529,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 { src: "/apple-icon.png", sizes: "180x180", type: "image/png" },
               ],
             });
-            navigator.mediaSession.playbackState = "playing";
+            // NOTE: playbackState will be set by handlePlay event
           } catch {
             // ignore
           }
@@ -584,7 +581,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         // ============================================
         console.log("No cache available, using async loading");
 
-        // Update Media Session first
+        // Update Media Session metadata only (state will be set by play event)
         if ("mediaSession" in navigator) {
           try {
             navigator.mediaSession.metadata = new MediaMetadata({
@@ -596,7 +593,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 { src: "/apple-icon.png", sizes: "180x180", type: "image/png" },
               ],
             });
-            navigator.mediaSession.playbackState = "playing";
+            // NOTE: playbackState will be set by handlePlay event
           } catch {
             // ignore
           }
@@ -616,11 +613,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     // ============================================
     // Event: error - Handle playback errors
+    // NOTE: isPlaying will be updated by handlePause when audio stops
     // ============================================
     const handleError = (e: Event) => {
       console.error("Audio error:", e);
       setIsLoading(false);
-      setIsPlaying(false);
+      // NOTE: Do NOT set isPlaying here - let pause event handle it
     };
 
     // ============================================
@@ -675,6 +673,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     startProgressTracking,
     stopProgressTracking,
     clearPreviewTimeout,
+    prefetchNextSong,
   ]);
 
   // ============================================
