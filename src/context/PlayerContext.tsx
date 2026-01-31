@@ -163,6 +163,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const previewDurationRef = useRef<number>(30);
   const previewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  
+  // Prefetch cache for next song (CRITICAL for background playback)
+  const nextSongCacheRef = useRef<{
+    songId: string;
+    url: string;
+    isPreview: boolean;
+    previewDuration: number;
+  } | null>(null);
 
   // ============================================
   // State (Driven by Audio events)
@@ -209,10 +217,41 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [stopProgressTracking]);
 
   // ============================================
-  // Core: Load and Play Song (Synchronous Critical Path)
+  // Prefetch Next Song (CRITICAL for background playback)
+  // ============================================
+  const prefetchNextSong = useCallback(async () => {
+    const currentQueue = queueRef.current;
+    if (currentQueue.length <= 1) return;
+
+    const nextIndex = (currentIndexRef.current + 1) % currentQueue.length;
+    const nextSong = currentQueue[nextIndex];
+
+    if (!nextSong) return;
+
+    // Skip if already cached
+    if (nextSongCacheRef.current?.songId === nextSong.id) return;
+
+    try {
+      console.log("Prefetching next song:", nextSong.title);
+      const streamData = await getStreamUrl(nextSong.id, userIdRef.current);
+      nextSongCacheRef.current = {
+        songId: nextSong.id,
+        url: streamData.url,
+        isPreview: streamData.isPreview,
+        previewDuration: streamData.previewDuration || 30,
+      };
+      console.log("Next song prefetched successfully");
+    } catch (error) {
+      console.error("Failed to prefetch next song:", error);
+      nextSongCacheRef.current = null;
+    }
+  }, []);
+
+  // ============================================
+  // Core: Load and Play Song
   // ============================================
   const loadAndPlaySong = useCallback(
-    async (song: Song, index: number) => {
+    async (song: Song, index: number, cachedStreamData?: { url: string; isPreview: boolean; previewDuration: number }) => {
       const audio = audioRef.current;
       if (!audio) return;
 
@@ -221,7 +260,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setShowUpgradePrompt(false);
 
       try {
-        const streamData = await getStreamUrl(song.id, userIdRef.current);
+        // Use cached data if available, otherwise fetch
+        const streamData = cachedStreamData || await getStreamUrl(song.id, userIdRef.current);
 
         // Update refs immediately (sync)
         isPreviewRef.current = streamData.isPreview;
@@ -241,14 +281,18 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
         // Handle play promise
         if (playPromise !== undefined) {
-          playPromise.catch((error) => {
-            console.error("Play error:", error);
-            // NotAllowedError: User interaction required
-            if (error.name === "NotAllowedError") {
-              console.warn("Autoplay blocked. User interaction required.");
-            }
-            setIsLoading(false);
-          });
+          playPromise
+            .then(() => {
+              // Prefetch next song after current song starts playing
+              prefetchNextSong();
+            })
+            .catch((error) => {
+              console.error("Play error:", error);
+              if (error.name === "NotAllowedError") {
+                console.warn("Autoplay blocked. User interaction required.");
+              }
+              setIsLoading(false);
+            });
         }
 
         // Preview timeout
@@ -265,7 +309,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     },
-    [clearPreviewTimeout]
+    [clearPreviewTimeout, prefetchNextSong]
   );
 
   // ============================================
@@ -308,7 +352,18 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       updateMediaSession(nextSong, { play, pause, next, previous: () => {} });
       updateMediaSessionState(true);
 
-      loadAndPlaySong(nextSong, nextIndex);
+      // Check for cached URL
+      const cache = nextSongCacheRef.current;
+      if (cache && cache.songId === nextSong.id) {
+        nextSongCacheRef.current = null; // Clear cache
+        loadAndPlaySong(nextSong, nextIndex, {
+          url: cache.url,
+          isPreview: cache.isPreview,
+          previewDuration: cache.previewDuration,
+        });
+      } else {
+        loadAndPlaySong(nextSong, nextIndex);
+      }
     }
   }, [loadAndPlaySong, play, pause]);
 
@@ -440,6 +495,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     // ============================================
     // Event: ended - CRITICAL for background playback
+    // "Audio First" Pattern: Play BEFORE updating React state
     // ============================================
     const handleEnded = () => {
       console.log("Audio ended event fired");
@@ -452,9 +508,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const nextIndex = (currentIndexRef.current + 1) % currentQueue.length;
       const nextSong = currentQueue[nextIndex];
 
-      if (nextSong) {
-        // CRITICAL: Update Media Session IMMEDIATELY (sync)
-        // This tells the OS "we're still playing" before it kills the session
+      if (!nextSong) return;
+
+      // Check if we have prefetched data for the next song
+      const cache = nextSongCacheRef.current;
+      const hasCachedUrl = cache && cache.songId === nextSong.id;
+
+      if (hasCachedUrl) {
+        // ============================================
+        // AUDIO FIRST: Use cached URL for instant playback
+        // ============================================
+        console.log("Using cached URL for instant playback");
+
+        // 1. Update Media Session IMMEDIATELY (sync)
         if ("mediaSession" in navigator) {
           try {
             navigator.mediaSession.metadata = new MediaMetadata({
@@ -472,7 +538,70 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // Load next song
+        // 2. Set src and play IMMEDIATELY (sync) - BEFORE state update
+        audio.src = cache.url;
+        const playPromise = audio.play();
+
+        // 3. Update refs
+        currentIndexRef.current = nextIndex;
+        isPreviewRef.current = cache.isPreview;
+        previewDurationRef.current = cache.previewDuration;
+
+        // 4. Clear cache
+        nextSongCacheRef.current = null;
+
+        // 5. Update React state AFTER play initiated
+        setCurrentSong(nextSong);
+        setCurrentIndex(nextIndex);
+        setIsPreview(cache.isPreview);
+
+        // 6. Handle play promise and prefetch next
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              console.log("Background playback successful");
+              // Prefetch the next song
+              prefetchNextSong();
+              
+              // Setup preview timeout if needed
+              if (cache.isPreview && cache.previewDuration) {
+                previewTimeoutRef.current = setTimeout(() => {
+                  if (audio && isPreviewRef.current) {
+                    audio.pause();
+                    setShowUpgradePrompt(true);
+                  }
+                }, cache.previewDuration * 1000);
+              }
+            })
+            .catch((error) => {
+              console.error("Background auto-play failed:", error);
+              setIsLoading(false);
+            });
+        }
+      } else {
+        // ============================================
+        // Fallback: No cache, use async loading
+        // ============================================
+        console.log("No cache available, using async loading");
+
+        // Update Media Session first
+        if ("mediaSession" in navigator) {
+          try {
+            navigator.mediaSession.metadata = new MediaMetadata({
+              title: nextSong.title,
+              artist: nextSong.artist || "BizSound Stock",
+              album: "BizSound Radio",
+              artwork: [
+                { src: "/icons/icon.svg", sizes: "any", type: "image/svg+xml" },
+                { src: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+              ],
+            });
+            navigator.mediaSession.playbackState = "playing";
+          } catch {
+            // ignore
+          }
+        }
+
         currentIndexRef.current = nextIndex;
         loadAndPlaySong(nextSong, nextIndex);
       }
