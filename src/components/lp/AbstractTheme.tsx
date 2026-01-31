@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { SERVICE_NAME, SUB_TAGLINE, FEATURES, PLANS, COMPARISON_OPTIONS } from '@/lib/lp-constants';
 import { GetIcon } from './icons';
-import { ArrowRight, AlertTriangle, CheckCircle2, X } from 'lucide-react';
+import { ArrowRight, CheckCircle2, X } from 'lucide-react';
 
 const AbstractTheme: React.FC = () => {
   return (
@@ -39,32 +39,33 @@ const AbstractTheme: React.FC = () => {
         </div>
       </nav>
 
-      {/* Hero */}
-      <section className="py-20 px-6 relative z-10">
+      {/* Hero - シンプル＆余白重視 */}
+      <section className="py-24 md:py-32 px-6 relative z-10">
         <div className="max-w-6xl mx-auto grid md:grid-cols-12 gap-12 items-center">
           <div className="md:col-span-7 relative">
             <div className="absolute -top-10 -left-10 w-32 h-32 bg-yellow-400 rounded-full mix-blend-multiply opacity-80 animate-pulse"></div>
             
-            {/* 問題提起のキャッチコピー */}
-            <div className="bg-amber-100 border-l-4 border-amber-600 p-4 mb-6 transform -rotate-1 relative z-10">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
-                <p className="font-bold text-amber-800 text-lg">
-                  お店のBGM、個人のスマホで流していませんか？<br/>
-                  <span className="text-base font-medium">それは規約違反のリスクがあります。</span>
-                </p>
-              </div>
-            </div>
-            
+            {/* メインコピー */}
             <h1 className="text-5xl md:text-7xl leading-[0.9] mb-8 relative z-10 font-black uppercase">
               法的リスクゼロの<br/>
-              店舗BGMを<br/>
-              <span className="text-amber-600">月額980円</span>から
+              店舗BGMを
             </h1>
-            <p className="font-sans font-bold text-slate-600 text-xl max-w-md bg-white p-4 border-2 border-black shadow-[4px_4px_0px_#000] transform rotate-1">
+            
+            {/* 価格表示 - サイズでコントラスト */}
+            <div className="mb-8">
+              <p className="text-amber-600 text-6xl md:text-8xl font-black leading-none">
+                月額980円
+              </p>
+              <p className="text-slate-500 text-lg mt-2">（税込）から</p>
+            </div>
+            
+            {/* 説明文 */}
+            <p className="font-sans font-bold text-slate-600 text-xl max-w-lg bg-white p-4 border-2 border-black shadow-[4px_4px_0px_#000] transform rotate-1 mb-10">
               {SUB_TAGLINE}
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 mt-8">
+            
+            {/* CTAボタン */}
+            <div className="flex flex-col sm:flex-row gap-4">
               <Link 
                 href="/signup"
                 className="bg-black text-white px-10 py-4 text-xl uppercase hover:bg-slate-800 transition-colors transform -rotate-1 hover:rotate-0 inline-block text-center"
