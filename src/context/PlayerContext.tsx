@@ -226,34 +226,42 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ============================================
-  // CORE: Aggressive Resume (Sync-Fire Pattern)
-  // async/await を完全撤廃、全コマンドを同期的に発火
-  // iOS PWAでは await の瞬間にプロセスが停止するため
+  // CORE: Resume Playback (Visibility-Aware)
+  // Foreground: 通常再生
+  // Background/PWA: 叩き起こしロジック
   // ============================================
-  const aggressiveResume = useCallback(() => {
+  const resumePlayback = useCallback(() => {
     const audio = audioRef.current;
     if (!audio || !audio.src) return;
 
-    // 1. 状態にかかわらず、まず物理的に「叩き起こす」
-    // PWAでは接続が切れている前提で動く
-    // load() は同期的に実行され、即座にバッファ確保に動く
-    audio.load();
-
-    // 2. 待たずに再生命令を発火
-    // Promiseが返ってくるが、awaitせずに「投げっぱなし」にする
-    const playPromise = audio.play();
-    
-    if (playPromise !== undefined) {
-      playPromise.catch((e) => {
-        console.error("Sync-Fire play failed:", e);
-        // 失敗したら停止表示に戻す
-        setIsPlaying(false);
-        if ("mediaSession" in navigator) {
-          navigator.mediaSession.playbackState = "paused";
-        }
+    if (document.visibilityState === "visible") {
+      // 【パターンA：通常再生】
+      // アプリを開いている時は、余計なことをせず素直に再生する
+      audio.play().catch((e) => {
+        console.error("Standard play failed:", e);
       });
+      // 成功時は handlePlay イベントで setIsPlaying(true)
+      
+    } else {
+      // 【パターンB：PWAバックグラウンド対策】
+      // アプリが隠れている（ロック画面など）時だけ、叩き起こしロジックを使う
+      
+      // 1. 強制ロード（同期実行）で接続を復活させる
+      audio.load();
+      
+      // 2. 待たずに再生命令を発火
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((e) => {
+          console.error("Background Force-Play failed:", e);
+          setIsPlaying(false);
+          if ("mediaSession" in navigator) {
+            navigator.mediaSession.playbackState = "paused";
+          }
+        });
+      }
+      // 成功時は handlePlay イベントで setIsPlaying(true)
     }
-    // ※成功時の setIsPlaying(true) は handlePlay イベントで行う
   }, []);
 
   // ============================================
@@ -316,8 +324,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // Actions
   // ============================================
   const play = useCallback(() => {
-    aggressiveResume();
-  }, [aggressiveResume]);
+    resumePlayback();
+  }, [resumePlayback]);
 
   const pause = useCallback(() => {
     const audio = audioRef.current;
@@ -330,12 +338,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const audio = audioRef.current;
     if (audio) {
       if (audio.paused) {
-        aggressiveResume();
+        resumePlayback();
       } else {
         audio.pause();
       }
     }
-  }, [aggressiveResume]);
+  }, [resumePlayback]);
 
   const next = useCallback(() => {
     const currentQueue = queueRef.current;
@@ -549,13 +557,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     audio.addEventListener("canplay", handleCanPlay);
 
     // ============================================
-    // MediaSession: aggressiveResume を使用
+    // MediaSession: resumePlayback を使用
     // ============================================
     if ("mediaSession" in navigator) {
       try {
         navigator.mediaSession.setActionHandler("play", () => {
-          console.log("MediaSession: play -> aggressiveResume");
-          aggressiveResume();
+          console.log("MediaSession: play -> resumePlayback");
+          resumePlayback();
         });
         navigator.mediaSession.setActionHandler("pause", () => {
           console.log("MediaSession: pause");
@@ -588,7 +596,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     next,
     previous,
     loadAndPlaySong,
-    aggressiveResume,
+    resumePlayback,
     prefetchNextSong,
     startProgressTracking,
     stopProgressTracking,
