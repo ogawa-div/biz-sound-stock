@@ -2,12 +2,18 @@
 
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Heart, Play, Pause, Shuffle, Loader2, Music } from "lucide-react"
+import { Heart, Play, Pause, Loader2, Music, Sparkles } from "lucide-react"
 import { usePlayerStore } from "@/store/player-store"
 import { useSongsStore } from "@/store/songs-store"
 import { useAuth } from "@/lib/auth/context"
 import type { Song } from "@/types/database"
 import { cn } from "@/lib/utils"
+
+// Day info type for Daily Mix
+type DayInfo = {
+  title: string
+  sub: string
+}
 
 // Format duration from seconds to mm:ss
 function formatDuration(seconds: number | null): string {
@@ -80,6 +86,7 @@ async function removeFavorite(userId: string, songId: string, accessToken: strin
 export function SongList() {
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
   const [loadingFavorite, setLoadingFavorite] = useState<string | null>(null)
+  const [dayInfo, setDayInfo] = useState<DayInfo | null>(null)
   
   // グローバルストアから曲を取得
   const { songs, isLoading, fetchSongs } = useSongsStore()
@@ -91,6 +98,17 @@ export function SongList() {
   useEffect(() => {
     fetchSongs()
   }, [fetchSongs])
+
+  // クライアント側でのみ曜日情報を設定（ハイドレーションエラー回避）
+  useEffect(() => {
+    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    const currentDay = days[new Date().getDay()]
+    
+    setDayInfo({
+      title: `${currentDay} Mix`,
+      sub: `Optimized for ${currentDay}'s atmosphere`
+    })
+  }, [])
 
 
   // お気に入りを取得（ログインユーザーのみ）
@@ -195,17 +213,28 @@ export function SongList() {
         </div>
       </div>
 
-      {/* Play All Button */}
-      <div className="mb-6 flex items-center gap-4">
-        <Button
-          size="lg"
+      {/* Daily Mix Button */}
+      <div className="mb-6">
+        <button
           onClick={handlePlayAll}
           disabled={songs.length === 0}
-          className="gap-2 bg-accent text-accent-foreground hover:bg-accent/90 hover:brightness-110"
+          className="group flex items-center gap-4 rounded-xl bg-gradient-to-r from-accent/20 to-primary/20 p-4 transition-all duration-300 hover:from-accent/30 hover:to-primary/30 hover:shadow-lg hover:shadow-accent/10 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
         >
-          <Shuffle className="h-5 w-5" />
-          シャッフル再生
-        </Button>
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg group-hover:scale-105 transition-transform duration-300">
+            <Play className="h-6 w-6 ml-0.5" />
+          </div>
+          <div className="text-left">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-lg text-foreground">
+                {dayInfo ? dayInfo.title : "Daily Mix"}
+              </span>
+              <Sparkles className="h-4 w-4 text-accent" />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {dayInfo ? dayInfo.sub : "Curated for store atmosphere"}
+            </p>
+          </div>
+        </button>
       </div>
 
       {/* Song List */}
