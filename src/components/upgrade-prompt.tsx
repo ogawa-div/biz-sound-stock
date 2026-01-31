@@ -3,12 +3,10 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { X, Crown, Sparkles } from "lucide-react"
-import { usePlayerStore } from "@/store/player-store"
+import { usePlayer } from "@/context/PlayerContext"
 
 export function UpgradePrompt() {
-  const showUpgradePrompt = usePlayerStore((state) => state.showUpgradePrompt)
-  const dismissUpgradePrompt = usePlayerStore((state) => state.dismissUpgradePrompt)
-  const next = usePlayerStore((state) => state.next)
+  const { showUpgradePrompt, dismissUpgradePrompt, next } = usePlayer()
 
   if (!showUpgradePrompt) return null
 

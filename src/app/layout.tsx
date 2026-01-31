@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { AuthProvider } from "@/lib/auth/context"
+import { PlayerProvider } from "@/context/PlayerContext"
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt"
 import "./globals.css"
 
@@ -57,8 +58,10 @@ export default function RootLayout({
     <html lang="ja" className="dark">
       <body className={`${inter.variable} font-sans antialiased`}>
         <AuthProvider>
-          {children}
-          <PWAInstallPrompt />
+          <PlayerProvider>
+            {children}
+            <PWAInstallPrompt />
+          </PlayerProvider>
         </AuthProvider>
         <Analytics />
       </body>

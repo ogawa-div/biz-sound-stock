@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Heart, Play, Pause, Shuffle, Loader2, Clock } from "lucide-react"
 import { useAuth } from "@/lib/auth/context"
-import { usePlayerStore } from "@/store/player-store"
+import { usePlayer } from "@/context/PlayerContext"
 import type { Song } from "@/types/database"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
@@ -83,7 +83,7 @@ export default function FavoritesPage() {
   const [removingId, setRemovingId] = useState<string | null>(null)
   
   const { user, session, isLoading: authLoading } = useAuth()
-  const { currentSong, isPlaying, playSong, toggle } = usePlayerStore()
+  const { currentSong, isPlaying, playSong, toggle } = usePlayer()
 
   // Fetch favorite songs
   useEffect(() => {

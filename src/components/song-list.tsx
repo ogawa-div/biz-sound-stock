@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Heart, Play, Pause, Loader2, Music, Sparkles } from "lucide-react"
-import { usePlayerStore } from "@/store/player-store"
+import { usePlayer } from "@/context/PlayerContext"
 import { useSongsStore } from "@/store/songs-store"
 import { useAuth } from "@/lib/auth/context"
 import type { Song } from "@/types/database"
@@ -92,7 +92,7 @@ export function SongList() {
   const { songs, isLoading, fetchSongs } = useSongsStore()
   
   const { user, session } = useAuth()
-  const { currentSong, isPlaying, playSong, toggle, queue } = usePlayerStore()
+  const { currentSong, isPlaying, playSong, toggle, queue } = usePlayer()
 
   // コンポーネントマウント時に曲を取得
   useEffect(() => {

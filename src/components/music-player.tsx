@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Heart, Music, Crown, Loader2 } from "lucide-react"
 import { useState, useEffect, useCallback } from "react"
-import { usePlayerStore } from "@/store/player-store"
+import { usePlayer } from "@/context/PlayerContext"
 import { useAuth } from "@/lib/auth/context"
 import { UpgradePrompt } from "@/components/upgrade-prompt"
 
@@ -71,25 +71,27 @@ export function MusicPlayer() {
   const [isLoadingFavorite, setIsLoadingFavorite] = useState(false)
   const { user, session } = useAuth()
   
-  // Player store state
-  const isPlaying = usePlayerStore((state) => state.isPlaying)
-  const currentSong = usePlayerStore((state) => state.currentSong)
-  const currentPlaylist = usePlayerStore((state) => state.currentPlaylist)
-  const volume = usePlayerStore((state) => state.volume)
-  const progress = usePlayerStore((state) => state.progress)
-  const duration = usePlayerStore((state) => state.duration)
-  const isMuted = usePlayerStore((state) => state.isMuted)
-  const isPreview = usePlayerStore((state) => state.isPreview)
-  const previewDuration = usePlayerStore((state) => state.previewDuration)
+  // Player context
+  const {
+    isPlaying,
+    currentSong,
+    currentPlaylist,
+    volume,
+    progress,
+    duration,
+    isMuted,
+    isPreview,
+    toggle,
+    next,
+    previous,
+    setVolume,
+    seek,
+    toggleMute,
+    setUserId,
+  } = usePlayer()
   
-  // Player store actions
-  const toggle = usePlayerStore((state) => state.toggle)
-  const next = usePlayerStore((state) => state.next)
-  const previous = usePlayerStore((state) => state.previous)
-  const setVolume = usePlayerStore((state) => state.setVolume)
-  const seek = usePlayerStore((state) => state.seek)
-  const toggleMute = usePlayerStore((state) => state.toggleMute)
-  const setUserId = usePlayerStore((state) => state.setUserId)
+  // Preview duration (30 seconds for preview mode)
+  const previewDuration = 30
 
   // Sync user ID with player store
   useEffect(() => {
@@ -131,9 +133,12 @@ export function MusicPlayer() {
   // Calculate progress percentage
   const progressPercent = duration > 0 ? (progress / duration) * 100 : 0
 
-  // Handle progress slider change
+  // Handle progress slider change (convert percentage to seconds)
   const handleProgressChange = (value: number[]) => {
-    seek(value[0])
+    if (duration > 0) {
+      const seekTime = (value[0] / 100) * duration
+      seek(seekTime)
+    }
   }
 
   // Handle volume slider change
