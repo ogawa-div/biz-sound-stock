@@ -9,13 +9,12 @@ import { ArrowRight, Music, AlertTriangle, CheckCircle2, X } from 'lucide-react'
 const AbstractTheme: React.FC = () => {
   return (
     <div 
-      className="fixed inset-0 font-sans text-slate-900 bg-gray-100 overflow-y-auto overflow-x-hidden" 
+      className="min-h-screen font-sans text-slate-900 bg-gray-100 relative" 
       style={{ scrollBehavior: 'smooth' }}
-      data-lp-page
     >
       {/* Texture Overlay */}
       <div 
-        className="fixed inset-0 opacity-20 pointer-events-none mix-blend-multiply z-0" 
+        className="absolute inset-0 opacity-20 pointer-events-none mix-blend-multiply z-0" 
         style={{backgroundImage: 'url("https://www.transparenttextures.com/patterns/dust.png")'}}
       ></div>
 
