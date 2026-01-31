@@ -226,50 +226,34 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ============================================
-  // CORE: Aggressive Resume (Sync-Blast Recovery)
-  // User Gesture Token有効期限内に全コマンドを同期的に叩き込む
-  // addEventListener や await での待機は一切しない
+  // CORE: Aggressive Resume (Sync-Fire Pattern)
+  // async/await を完全撤廃、全コマンドを同期的に発火
+  // iOS PWAでは await の瞬間にプロセスが停止するため
   // ============================================
-  const aggressiveResume = useCallback(async () => {
+  const aggressiveResume = useCallback(() => {
     const audio = audioRef.current;
     if (!audio || !audio.src) return;
 
-    try {
-      // 1. まず普通に再生を試みる
-      await audio.play();
-      // 成功した場合、handlePlayイベントでUI更新される
-    } catch (error) {
-      console.warn("PWA Resume failed, executing Sync-Blast Recovery:", error);
-      
-      // 2. 失敗したら、間髪入れずにリロードと再生を叩き込む
-      try {
-        const savedTime = audio.currentTime;
-        const currentSrc = audio.src;
-        
-        // A. 強制リロード
-        audio.src = currentSrc;
-        audio.load();
-        
-        // B. ダメ元で位置復元を試みる（エラーになっても無視して進む）
-        try {
-          audio.currentTime = savedTime;
-        } catch {
-          console.log("Seek failed (buffer empty), playing from start.");
-        }
-        
-        // C. 準備完了を待たずに即 play()
-        // iOSへの「再生の意志」をトークン有効期限内に伝えることが最優先
-        await audio.play();
-        console.log("Sync-Blast Recovery successful");
-        
-      } catch (retryError) {
-        console.error("Sync-Blast Recovery failed:", retryError);
+    // 1. 状態にかかわらず、まず物理的に「叩き起こす」
+    // PWAでは接続が切れている前提で動く
+    // load() は同期的に実行され、即座にバッファ確保に動く
+    audio.load();
+
+    // 2. 待たずに再生命令を発火
+    // Promiseが返ってくるが、awaitせずに「投げっぱなし」にする
+    const playPromise = audio.play();
+    
+    if (playPromise !== undefined) {
+      playPromise.catch((e) => {
+        console.error("Sync-Fire play failed:", e);
+        // 失敗したら停止表示に戻す
         setIsPlaying(false);
         if ("mediaSession" in navigator) {
           navigator.mediaSession.playbackState = "paused";
         }
-      }
+      });
     }
+    // ※成功時の setIsPlaying(true) は handlePlay イベントで行う
   }, []);
 
   // ============================================
