@@ -63,7 +63,7 @@ const EarlyBirdTheme: React.FC = () => {
             
             {/* 価格表示 - サイズでコントラスト */}
             <div className="mb-8">
-              <span className="inline-block bg-slate-800 text-white text-xs font-bold px-3 py-1 uppercase tracking-wide mb-3">
+              <span className="inline-block bg-amber-600 text-white text-xs font-bold px-3 py-1 uppercase tracking-wide mb-3">
                 期間限定特別価格
               </span>
               <p className="text-gray-400 text-xl line-through mb-2">
@@ -76,8 +76,8 @@ const EarlyBirdTheme: React.FC = () => {
             </div>
             
             {/* 説明文 - 通常LPと同様の装飾 */}
-            <p className="font-sans font-bold text-slate-600 text-xl max-w-md bg-white p-4 border-2 border-black shadow-[4px_4px_0px_#000] transform rotate-1 mb-10">
-              店舗でのBGM利用が規約違反にならない、経営者のための安心・安全な選択肢。
+            <p className="font-sans font-bold text-slate-600 text-xl max-w-lg bg-white p-4 border-2 border-black shadow-[4px_4px_0px_#000] transform rotate-1 mb-10">
+              店舗でのBGM利用が規約違反にならない、<br className="hidden sm:inline" />経営者のための安心・安全な選択肢。
             </p>
             
             {/* CTAボタン */}
