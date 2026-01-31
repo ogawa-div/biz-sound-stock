@@ -66,7 +66,7 @@ const EarlyBirdTheme: React.FC = () => {
               <p className="text-gray-400 text-xl line-through mb-2">
                 月額980円
               </p>
-              <p className="text-slate-900 text-6xl md:text-8xl font-black leading-none">
+              <p className="text-amber-600 text-6xl md:text-8xl font-black leading-none">
                 月額500円
               </p>
               <p className="text-slate-500 text-lg mt-2">（税込）から</p>
@@ -197,7 +197,7 @@ const EarlyBirdTheme: React.FC = () => {
               <p className="text-gray-400 text-2xl line-through mb-4">
                 通常価格 ¥980/月
               </p>
-              <p className="text-slate-900 text-7xl md:text-9xl font-black leading-none mb-4">
+              <p className="text-amber-600 text-7xl md:text-9xl font-black leading-none mb-4">
                 ¥500
               </p>
               <p className="text-slate-500 text-xl">（税込）/ 月</p>
