@@ -26,13 +26,10 @@ export default function SettingsPage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [profileLoading, setProfileLoading] = useState(true)
 
-  const [debugInfo, setDebugInfo] = useState<string>("")
-
   // プロフィールを直接取得（RLS対応）
   useEffect(() => {
     async function fetchProfile() {
       if (!user || !session?.access_token) {
-        setDebugInfo(`No user or session: user=${!!user}, token=${!!session?.access_token}`)
         setProfileLoading(false)
         return
       }
@@ -46,23 +43,14 @@ export default function SettingsPage() {
           },
         })
 
-        const responseText = await response.text()
-        setDebugInfo(`Status: ${response.status}, Response: ${responseText.substring(0, 200)}`)
-
         if (response.ok) {
-          const data = JSON.parse(responseText)
+          const data = await response.json()
           if (data?.[0]) {
             setProfile(data[0])
-            setDebugInfo(`Profile loaded: status=${data[0].subscription_status}, plan=${data[0].subscription_plan}`)
-          } else {
-            setDebugInfo(`No profile found in response: ${responseText}`)
           }
-        } else {
-          setDebugInfo(`Error ${response.status}: ${responseText}`)
         }
       } catch (error) {
         console.error("Profile fetch error:", error)
-        setDebugInfo(`Fetch error: ${error}`)
       } finally {
         setProfileLoading(false)
       }
@@ -172,11 +160,6 @@ export default function SettingsPage() {
       {/* Content */}
       <main className="container mx-auto max-w-2xl px-4 py-8">
         <h1 className="mb-8 text-3xl font-bold text-foreground">設定</h1>
-
-        {/* デバッグ情報（問題解決後に削除） */}
-        <div className="mb-4 p-3 bg-red-900/20 border border-red-500 rounded text-xs text-red-300 font-mono whitespace-pre-wrap">
-          DEBUG: {debugInfo}
-        </div>
 
         {/* Account Info Section */}
         <Card className="mb-6 border-border/50 bg-card/50">
