@@ -63,6 +63,9 @@ const EarlyBirdTheme: React.FC = () => {
             
             {/* 価格表示 - サイズでコントラスト */}
             <div className="mb-8">
+              <span className="inline-block bg-slate-800 text-white text-xs font-bold px-3 py-1 uppercase tracking-wide mb-3">
+                期間限定特別価格
+              </span>
               <p className="text-gray-400 text-xl line-through mb-2">
                 月額980円
               </p>
