@@ -153,13 +153,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     isPreview: boolean;
     previewDuration: number;
   } | null>(null);
-  
-  // 現在の曲のストリームURL情報（バックグラウンド復帰時に再取得用）
-  const currentStreamRef = useRef<{
-    songId: string;
-    url: string;
-    expiresAt: number;
-  } | null>(null);
 
   // ============================================
   // State
@@ -233,100 +226,25 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ============================================
-  // CORE: Resume Playback
-  // Foreground: 通常再生（async/await OK）
-  // Background: 完全同期 + URL再取得
+  // CORE: Play Track (Standard Implementation)
+  // シンプルに audio.play() を呼ぶだけ
   // ============================================
-  
-  // フォアグラウンド用（通常の再生）
-  const resumePlaybackForeground = useCallback(async () => {
+  const playTrack = useCallback(async () => {
     const audio = audioRef.current;
     if (!audio || !audio.src) return;
-    
+
     try {
       await audio.play();
-    } catch (e) {
-      console.error("Foreground play failed:", e);
+      // isPlaying の更新は onPlay イベントリスナーで行われる
+    } catch (error) {
+      console.warn("Playback failed:", error);
+      // 再生に失敗したら、UIを確実に「停止」に戻す
       setIsPlaying(false);
+      if ("mediaSession" in navigator) {
+        navigator.mediaSession.playbackState = "paused";
+      }
     }
   }, []);
-  
-  // バックグラウンド用（完全同期、URL再取得付き）
-  const resumePlaybackBackground = useCallback(() => {
-    const audio = audioRef.current;
-    const currentSongData = currentStreamRef.current;
-    
-    if (!audio) return;
-    
-    // まず単純に play() を試す（fire-and-forget）
-    const playPromise = audio.play();
-    
-    if (playPromise !== undefined) {
-      playPromise.catch((error) => {
-        console.warn("BG: Quick play failed:", error);
-        
-        // URLが期限切れ or ネットワーク切断の可能性
-        // 新しいURLを取得して再試行
-        if (currentSongData && currentSongData.songId) {
-          console.log("BG: Fetching fresh stream URL...");
-          
-          getStreamUrl(currentSongData.songId, userIdRef.current)
-            .then((streamData) => {
-              console.log("BG: Got fresh URL, reloading...");
-              
-              // 新しいURLをセット
-              currentStreamRef.current = {
-                songId: currentSongData.songId,
-                url: streamData.url,
-                expiresAt: streamData.expiresAt,
-              };
-              
-              const savedTime = audio.currentTime;
-              audio.src = streamData.url;
-              audio.load();
-              
-              // 位置復元（エラー無視）
-              try {
-                audio.currentTime = savedTime;
-              } catch {
-                // ignore
-              }
-              
-              // 再生
-              audio.play().catch((e) => {
-                console.error("BG: Final play failed:", e);
-                setIsPlaying(false);
-                if ("mediaSession" in navigator) {
-                  navigator.mediaSession.playbackState = "paused";
-                }
-              });
-            })
-            .catch((fetchError) => {
-              console.error("BG: Failed to fetch fresh URL:", fetchError);
-              setIsPlaying(false);
-              if ("mediaSession" in navigator) {
-                navigator.mediaSession.playbackState = "paused";
-              }
-            });
-        } else {
-          // currentSongDataがない場合は諦める
-          setIsPlaying(false);
-          if ("mediaSession" in navigator) {
-            navigator.mediaSession.playbackState = "paused";
-          }
-        }
-      });
-    }
-  }, []);
-  
-  // 統合された resumePlayback（visibilityで分岐）
-  const resumePlayback = useCallback(() => {
-    if (document.visibilityState === "visible") {
-      resumePlaybackForeground();
-    } else {
-      resumePlaybackBackground();
-    }
-  }, [resumePlaybackForeground, resumePlaybackBackground]);
 
   // ============================================
   // Load and Play Song
@@ -345,13 +263,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
         isPreviewRef.current = streamData.isPreview;
         previewDurationRef.current = streamData.previewDuration || 30;
-        
-        // バックグラウンド復帰用にストリーム情報を保存
-        currentStreamRef.current = {
-          songId: song.id,
-          url: streamData.url,
-          expiresAt: (streamData as StreamResponse).expiresAt || Date.now() + 3600000,
-        };
 
         setCurrentSong(song);
         setCurrentIndex(index);
@@ -395,8 +306,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // Actions
   // ============================================
   const play = useCallback(() => {
-    resumePlayback();
-  }, [resumePlayback]);
+    playTrack();
+  }, [playTrack]);
 
   const pause = useCallback(() => {
     const audio = audioRef.current;
@@ -409,12 +320,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const audio = audioRef.current;
     if (audio) {
       if (audio.paused) {
-        resumePlayback();
+        playTrack();
       } else {
         audio.pause();
       }
     }
-  }, [resumePlayback]);
+  }, [playTrack]);
 
   const next = useCallback(() => {
     const currentQueue = queueRef.current;
@@ -628,16 +539,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     audio.addEventListener("canplay", handleCanPlay);
 
     // ============================================
-    // MediaSession: resumePlayback を使用
+    // MediaSession: Standard Handlers
     // ============================================
     if ("mediaSession" in navigator) {
       try {
         navigator.mediaSession.setActionHandler("play", () => {
-          console.log("MediaSession: play -> resumePlayback");
-          resumePlayback();
+          playTrack();
         });
         navigator.mediaSession.setActionHandler("pause", () => {
-          console.log("MediaSession: pause");
           audio.pause();
         });
         navigator.mediaSession.setActionHandler("previoustrack", () => {
@@ -667,7 +576,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     next,
     previous,
     loadAndPlaySong,
-    resumePlayback,
+    playTrack,
     prefetchNextSong,
     startProgressTracking,
     stopProgressTracking,
