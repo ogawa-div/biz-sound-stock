@@ -91,15 +91,7 @@ const getStreamUrl = async (
 };
 
 // Media Session API: ロック画面・通知センター対応
-const updateMediaSession = (
-  song: Song | null,
-  handlers: {
-    play: () => void;
-    pause: () => void;
-    next: () => void;
-    previous: () => void;
-  }
-) => {
+const updateMediaSessionMetadata = (song: Song | null) => {
   if (typeof window === "undefined" || !("mediaSession" in navigator)) return;
 
   try {
@@ -114,11 +106,6 @@ const updateMediaSession = (
         ],
       });
     }
-
-    navigator.mediaSession.setActionHandler("play", handlers.play);
-    navigator.mediaSession.setActionHandler("pause", handlers.pause);
-    navigator.mediaSession.setActionHandler("previoustrack", handlers.previous);
-    navigator.mediaSession.setActionHandler("nexttrack", handlers.next);
   } catch {
     // ignore
   }
@@ -164,6 +151,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const previewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
+  // ============================================
+  // NEW: Race Condition 対策用 Refs
+  // ============================================
+  // Play操作が進行中かどうかのフラグ (AbortError防止)
+  const isPlayPendingRef = useRef<boolean>(false);
+  // 現在のPlay Promise (競合検出用)
+  const currentPlayPromiseRef = useRef<Promise<void> | null>(null);
+  // src変更中フラグ (意図しないpauseイベント無視用)
+  const isChangingSourceRef = useRef<boolean>(false);
+  
   // Prefetch cache for next song (CRITICAL for background playback)
   const nextSongCacheRef = useRef<{
     songId: string;
@@ -205,11 +202,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // ============================================
+  // MODIFIED: Progress Tracking with readyState check
+  // ============================================
   const startProgressTracking = useCallback(() => {
     stopProgressTracking();
     progressIntervalRef.current = setInterval(() => {
       const audio = audioRef.current;
-      if (audio && !audio.paused) {
+      // MODIFIED: readyState >= 3 (HAVE_FUTURE_DATA) を条件に追加
+      // これで「データがないのに時間が進む」現象を防止
+      if (audio && !audio.paused && audio.readyState >= 3) {
         setProgress(audio.currentTime);
         updateMediaSessionPosition(audio.currentTime, audio.duration || 0);
       }
@@ -248,7 +250,102 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ============================================
-  // Core: Load and Play Song
+  // NEW: Safe Play Method (Race Condition対策の核心)
+  // ============================================
+  const safePlay = useCallback(async (newSrc?: string): Promise<boolean> => {
+    const audio = audioRef.current;
+    if (!audio) return false;
+
+    // 既にplay操作が進行中なら待機
+    if (isPlayPendingRef.current && currentPlayPromiseRef.current) {
+      console.log("Play already pending, waiting...");
+      try {
+        await currentPlayPromiseRef.current;
+      } catch {
+        // 前のPromiseがエラーでも続行
+      }
+    }
+
+    isPlayPendingRef.current = true;
+
+    try {
+      // 新しいsrcがある場合
+      if (newSrc) {
+        // src変更中フラグを立てる（pauseイベント無視用）
+        isChangingSourceRef.current = true;
+        
+        audio.src = newSrc;
+        
+        // Safari用: 明示的にloadを呼び、canplay を待つ
+        // これにより「メディア未準備」エラーを防止
+        await new Promise<void>((resolve, reject) => {
+          const onCanPlay = () => {
+            audio.removeEventListener("canplay", onCanPlay);
+            audio.removeEventListener("error", onError);
+            resolve();
+          };
+          const onError = (e: Event) => {
+            audio.removeEventListener("canplay", onCanPlay);
+            audio.removeEventListener("error", onError);
+            reject(new Error(`Load error: ${e}`));
+          };
+          
+          audio.addEventListener("canplay", onCanPlay, { once: true });
+          audio.addEventListener("error", onError, { once: true });
+          
+          audio.load();
+          
+          // タイムアウト (10秒)
+          setTimeout(() => {
+            audio.removeEventListener("canplay", onCanPlay);
+            audio.removeEventListener("error", onError);
+            // タイムアウトでもresolveして再生を試みる
+            resolve();
+          }, 10000);
+        });
+        
+        // src変更完了
+        isChangingSourceRef.current = false;
+      }
+
+      // 再生実行
+      const playPromise = audio.play();
+      currentPlayPromiseRef.current = playPromise;
+
+      await playPromise;
+      console.log("safePlay: Playback started successfully");
+      return true;
+      
+    } catch (error: unknown) {
+      const err = error as Error;
+      
+      // AbortError: Safariで別の操作が割り込んだ場合（無視してOK）
+      if (err.name === "AbortError") {
+        console.log("safePlay: AbortError (interrupted, ignoring)");
+        return false;
+      }
+      
+      // NotAllowedError: ユーザー操作が必要
+      if (err.name === "NotAllowedError") {
+        console.warn("safePlay: NotAllowedError - User interaction required");
+        // UIを停止状態に戻す（ユーザーに再度押させるため）
+        setIsPlaying(false);
+        updateMediaSessionState(false);
+        return false;
+      }
+      
+      console.error("safePlay: Playback failed:", err);
+      return false;
+      
+    } finally {
+      isPlayPendingRef.current = false;
+      currentPlayPromiseRef.current = null;
+      isChangingSourceRef.current = false;
+    }
+  }, []);
+
+  // ============================================
+  // Core: Load and Play Song (MODIFIED: safePlay使用)
   // ============================================
   const loadAndPlaySong = useCallback(
     async (song: Song, index: number, cachedStreamData?: { url: string; isPreview: boolean; previewDuration: number }) => {
@@ -267,60 +364,47 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         isPreviewRef.current = streamData.isPreview;
         previewDurationRef.current = streamData.previewDuration || 30;
 
-        // CRITICAL: Set src and play synchronously to maintain background session
-        audio.src = streamData.url;
-        
-        // Play immediately (sync)
-        const playPromise = audio.play();
-
-        // Update React state after initiating play
+        // Update React state
         setCurrentSong(song);
         setCurrentIndex(index);
         currentIndexRef.current = index;
         setIsPreview(streamData.isPreview);
+        
+        // Update Media Session metadata
+        updateMediaSessionMetadata(song);
 
-        // Handle play promise
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              // Prefetch next song after current song starts playing
-              prefetchNextSong();
-            })
-            .catch((error) => {
-              console.error("Play error:", error);
-              if (error.name === "NotAllowedError") {
-                console.warn("Autoplay blocked. User interaction required.");
+        // MODIFIED: safePlayを使用して再生
+        const success = await safePlay(streamData.url);
+
+        if (success) {
+          // Prefetch next song after current song starts playing
+          prefetchNextSong();
+
+          // Preview timeout
+          if (streamData.isPreview && streamData.previewDuration) {
+            previewTimeoutRef.current = setTimeout(() => {
+              if (audio && isPreviewRef.current) {
+                audio.pause();
+                setShowUpgradePrompt(true);
               }
-              setIsLoading(false);
-            });
+            }, streamData.previewDuration * 1000);
+          }
         }
-
-        // Preview timeout
-        if (streamData.isPreview && streamData.previewDuration) {
-          previewTimeoutRef.current = setTimeout(() => {
-            if (audio && isPreviewRef.current) {
-              audio.pause();
-              setShowUpgradePrompt(true);
-            }
-          }, streamData.previewDuration * 1000);
-        }
+        
       } catch (error) {
         console.error("Error loading song:", error);
         setIsLoading(false);
       }
     },
-    [clearPreviewTimeout, prefetchNextSong]
+    [clearPreviewTimeout, prefetchNextSong, safePlay]
   );
 
   // ============================================
-  // Actions
+  // Actions (MODIFIED: safePlay使用)
   // ============================================
   const play = useCallback(() => {
-    const audio = audioRef.current;
-    if (audio && audio.src) {
-      audio.play().catch(console.error);
-    }
-  }, []);
+    safePlay();
+  }, [safePlay]);
 
   const pause = useCallback(() => {
     const audio = audioRef.current;
@@ -333,12 +417,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const audio = audioRef.current;
     if (audio) {
       if (audio.paused) {
-        audio.play().catch(console.error);
+        safePlay();
       } else {
         audio.pause();
       }
     }
-  }, []);
+  }, [safePlay]);
 
   const next = useCallback(() => {
     const currentQueue = queueRef.current;
@@ -360,7 +444,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       } else {
         loadAndPlaySong(nextSong, nextIndex);
       }
-      // NOTE: MediaSession state is updated via audio 'play' event
     }
   }, [loadAndPlaySong]);
 
@@ -483,8 +566,21 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     // ============================================
     // Event: pause - Audio paused
+    // MODIFIED: src変更中やseeking中は無視
     // ============================================
     const handlePause = () => {
+      // src変更中の場合は無視（曲切り替え時の一瞬のpause）
+      if (isChangingSourceRef.current) {
+        console.log("handlePause: Ignoring (source changing)");
+        return;
+      }
+      
+      // シーク中の場合も無視
+      if (audio.seeking) {
+        console.log("handlePause: Ignoring (seeking)");
+        return;
+      }
+      
       setIsPlaying(false);
       updateMediaSessionState(false);
       stopProgressTracking();
@@ -492,7 +588,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     // ============================================
     // Event: ended - CRITICAL for background playback
-    // "Audio First" Pattern: Play BEFORE updating React state
     // ============================================
     const handleEnded = () => {
       console.log("Audio ended event fired");
@@ -507,98 +602,44 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       if (!nextSong) return;
 
+      // Update Media Session metadata immediately
+      updateMediaSessionMetadata(nextSong);
+
       // Check if we have prefetched data for the next song
       const cache = nextSongCacheRef.current;
       const hasCachedUrl = cache && cache.songId === nextSong.id;
 
       if (hasCachedUrl) {
-        // ============================================
-        // AUDIO FIRST: Use cached URL for instant playback
-        // ============================================
-        console.log("Using cached URL for instant playback");
-
-        // 1. Update Media Session metadata only (state will be set by play event)
-        if ("mediaSession" in navigator) {
-          try {
-            navigator.mediaSession.metadata = new MediaMetadata({
-              title: nextSong.title,
-              artist: nextSong.artist || "BizSound Stock",
-              album: "BizSound Radio",
-              artwork: [
-                { src: "/icons/icon.svg", sizes: "any", type: "image/svg+xml" },
-                { src: "/apple-icon.png", sizes: "180x180", type: "image/png" },
-              ],
-            });
-            // NOTE: playbackState will be set by handlePlay event
-          } catch {
-            // ignore
-          }
-        }
-
-        // 2. Set src and play IMMEDIATELY (sync) - BEFORE state update
-        audio.src = cache.url;
-        const playPromise = audio.play();
-
-        // 3. Update refs
+        console.log("Using cached URL for next song");
+        nextSongCacheRef.current = null;
+        
+        // Update refs
         currentIndexRef.current = nextIndex;
         isPreviewRef.current = cache.isPreview;
         previewDurationRef.current = cache.previewDuration;
 
-        // 4. Clear cache
-        nextSongCacheRef.current = null;
-
-        // 5. Update React state AFTER play initiated
+        // Update React state
         setCurrentSong(nextSong);
         setCurrentIndex(nextIndex);
         setIsPreview(cache.isPreview);
 
-        // 6. Handle play promise and prefetch next
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              console.log("Background playback successful");
-              // Prefetch the next song
-              prefetchNextSong();
-              
-              // Setup preview timeout if needed
-              if (cache.isPreview && cache.previewDuration) {
-                previewTimeoutRef.current = setTimeout(() => {
-                  if (audio && isPreviewRef.current) {
-                    audio.pause();
-                    setShowUpgradePrompt(true);
-                  }
-                }, cache.previewDuration * 1000);
-              }
-            })
-            .catch((error) => {
-              console.error("Background auto-play failed:", error);
-              setIsLoading(false);
-            });
-        }
-      } else {
-        // ============================================
-        // Fallback: No cache, use async loading
-        // ============================================
-        console.log("No cache available, using async loading");
-
-        // Update Media Session metadata only (state will be set by play event)
-        if ("mediaSession" in navigator) {
-          try {
-            navigator.mediaSession.metadata = new MediaMetadata({
-              title: nextSong.title,
-              artist: nextSong.artist || "BizSound Stock",
-              album: "BizSound Radio",
-              artwork: [
-                { src: "/icons/icon.svg", sizes: "any", type: "image/svg+xml" },
-                { src: "/apple-icon.png", sizes: "180x180", type: "image/png" },
-              ],
-            });
-            // NOTE: playbackState will be set by handlePlay event
-          } catch {
-            // ignore
+        // Use safePlay with cached URL
+        safePlay(cache.url).then((success) => {
+          if (success) {
+            prefetchNextSong();
+            
+            if (cache.isPreview && cache.previewDuration) {
+              previewTimeoutRef.current = setTimeout(() => {
+                if (audio && isPreviewRef.current) {
+                  audio.pause();
+                  setShowUpgradePrompt(true);
+                }
+              }, cache.previewDuration * 1000);
+            }
           }
-        }
-
+        });
+      } else {
+        console.log("No cache available, loading next song");
         currentIndexRef.current = nextIndex;
         loadAndPlaySong(nextSong, nextIndex);
       }
@@ -613,12 +654,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     // ============================================
     // Event: error - Handle playback errors
-    // NOTE: isPlaying will be updated by handlePause when audio stops
     // ============================================
     const handleError = (e: Event) => {
       console.error("Audio error:", e);
       setIsLoading(false);
-      // NOTE: Do NOT set isPlaying here - let pause event handle it
     };
 
     // ============================================
@@ -646,8 +685,31 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     audio.addEventListener("waiting", handleWaiting);
     audio.addEventListener("canplay", handleCanPlay);
 
-    // Setup Media Session handlers
-    updateMediaSession(null, { play, pause, next, previous });
+    // ============================================
+    // Setup Media Session handlers (MODIFIED: safePlay使用)
+    // ============================================
+    if ("mediaSession" in navigator) {
+      try {
+        navigator.mediaSession.setActionHandler("play", () => {
+          console.log("MediaSession: play action");
+          safePlay();
+        });
+        navigator.mediaSession.setActionHandler("pause", () => {
+          console.log("MediaSession: pause action");
+          audio.pause();
+        });
+        navigator.mediaSession.setActionHandler("previoustrack", () => {
+          console.log("MediaSession: previous action");
+          previous();
+        });
+        navigator.mediaSession.setActionHandler("nexttrack", () => {
+          console.log("MediaSession: next action");
+          next();
+        });
+      } catch {
+        // ignore
+      }
+    }
 
     // ============================================
     // Cleanup
@@ -665,15 +727,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     };
   }, [
     volume,
-    play,
-    pause,
     next,
     previous,
     loadAndPlaySong,
+    safePlay,
+    prefetchNextSong,
     startProgressTracking,
     stopProgressTracking,
     clearPreviewTimeout,
-    prefetchNextSong,
   ]);
 
   // ============================================
