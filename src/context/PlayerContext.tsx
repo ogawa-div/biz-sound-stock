@@ -226,37 +226,39 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ============================================
-  // CORE: Aggressive Resume (iOS PWA Hard Reset)
-  // currentTime復元なし、srcトグルによる完全リセット
+  // CORE: Aggressive Resume (Micro-Seek Wake Up)
+  // srcは触らず、微小シークでデコーダーを復帰させる
   // ============================================
   const aggressiveResume = useCallback(async () => {
     const audio = audioRef.current;
-    if (!audio || !audio.src) return;
+    if (!audio) return;
 
     try {
       // 1. まず普通に再生を試みる
       await audio.play();
       // 成功した場合、handlePlayイベントでUI更新される
     } catch (error) {
-      console.warn("Play failed, forcing Hard Reset:", error);
+      console.warn("Play failed, attempting Micro-Seek Wake Up:", error);
       
       try {
-        // 2. ハードリセット（srcを付け直して叩き起こす）
-        const currentSrc = audio.src;
-        audio.src = "";           // 一旦切断
-        audio.load();             // 読み込みリセット
-        audio.src = currentSrc;   // 再接続
-        audio.load();             // 再読み込み
+        // 2. Micro-Seek策:
+        // 再生位置を0.1秒戻すことで、iOSのデコーダーを
+        // 強制的に「シーク処理」として叩き起こす
+        if (audio.duration) {
+          audio.currentTime = Math.max(0, audio.currentTime - 0.1);
+        }
         
-        // 時間復元はしない（Safariでエラーの温床になるため）
-        // 曲が最初からになっても構わない
-        
-        await audio.play();       // 再生
-        console.log("Hard Reset successful");
+        // シーク直後に再生
+        await audio.play();
+        // setIsPlaying(true) は呼ばない！onPlayイベントに任せる
+        console.log("Micro-Seek Wake Up successful");
       } catch (retryError) {
-        console.error("Hard Reset failed:", retryError);
+        console.error("Wake Up failed:", retryError);
+        // 失敗したら静かにあきらめる（UIを停止に戻す）
         setIsPlaying(false);
-        updateMediaSessionState(false);
+        if ("mediaSession" in navigator) {
+          navigator.mediaSession.playbackState = "paused";
+        }
       }
     }
   }, []);
