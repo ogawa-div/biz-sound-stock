@@ -226,8 +226,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ============================================
-  // CORE: Aggressive Resume (Play First, Seek Later)
-  // まず再生を優先、位置復元はloadeddata後に行う
+  // CORE: Aggressive Resume (Sync-Blast Recovery)
+  // User Gesture Token有効期限内に全コマンドを同期的に叩き込む
+  // addEventListener や await での待機は一切しない
   // ============================================
   const aggressiveResume = useCallback(async () => {
     const audio = audioRef.current;
@@ -238,34 +239,31 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       await audio.play();
       // 成功した場合、handlePlayイベントでUI更新される
     } catch (error) {
-      console.warn("PWA Resume failed, initiating 2-step recovery:", error);
+      console.warn("PWA Resume failed, executing Sync-Blast Recovery:", error);
       
+      // 2. 失敗したら、間髪入れずにリロードと再生を叩き込む
       try {
-        // 2. 現在位置を保存
         const savedTime = audio.currentTime;
-        
-        // 3. 「データ読み込み完了」を待ってから位置を復元
-        // ※重要：バッファがないうちにcurrentTimeをいじらない！
-        const restorePosition = () => {
-          if (savedTime > 0 && audio.duration) {
-            console.log("Restoring position to:", savedTime);
-            audio.currentTime = savedTime;
-          }
-        };
-        audio.addEventListener("loadeddata", restorePosition, { once: true });
-        
-        // 4. 強制リロード（srcを入れ直して新しいリクエストとして認識させる）
         const currentSrc = audio.src;
+        
+        // A. 強制リロード
         audio.src = currentSrc;
         audio.load();
         
-        // 5. 再生開始（まずは0秒地点から）
-        // 音声データが届き次第、上記のEventListenerが発火して位置が戻る
+        // B. ダメ元で位置復元を試みる（エラーになっても無視して進む）
+        try {
+          audio.currentTime = savedTime;
+        } catch {
+          console.log("Seek failed (buffer empty), playing from start.");
+        }
+        
+        // C. 準備完了を待たずに即 play()
+        // iOSへの「再生の意志」をトークン有効期限内に伝えることが最優先
         await audio.play();
-        console.log("2-step recovery: Play started, waiting for loadeddata to restore position");
+        console.log("Sync-Blast Recovery successful");
         
       } catch (retryError) {
-        console.error("2-step recovery failed:", retryError);
+        console.error("Sync-Blast Recovery failed:", retryError);
         setIsPlaying(false);
         if ("mediaSession" in navigator) {
           navigator.mediaSession.playbackState = "paused";
