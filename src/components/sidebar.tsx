@@ -189,7 +189,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 // Mobile header with hamburger menu
 export function MobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
   return (
-    <header className="fixed left-0 right-0 top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-card px-4 md:hidden">
+    <header className="fixed left-0 right-0 top-0 z-40 flex items-center justify-between border-b border-border bg-card px-4 pt-safe md:hidden" style={{ height: 'calc(3.5rem + env(safe-area-inset-top))' }}>
       <button onClick={onMenuClick} className="rounded-md p-2 hover:bg-white/10 transition-colors duration-200 cursor-pointer active:scale-95">
         <Menu className="h-5 w-5" />
       </button>

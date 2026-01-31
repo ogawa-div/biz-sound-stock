@@ -150,7 +150,7 @@ export function MusicPlayer() {
   return (
     <>
       <UpgradePrompt />
-      <div className="border-t border-border bg-card">
+      <div className="border-t border-border bg-card pb-safe">
         <div className="flex items-center gap-4 px-4 py-3 md:px-6 md:py-4">
           {/* Song Info */}
           <div className="flex min-w-0 flex-1 items-center gap-3 md:gap-4">

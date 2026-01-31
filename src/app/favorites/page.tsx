@@ -335,10 +335,13 @@ function FavoriteSongList() {
 
 export default function FavoritesPage() {
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden">
+    <div className="flex h-safe-screen flex-col overflow-hidden">
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto overscroll-none pt-14 md:pt-0">
+        <main 
+          className="flex-1 overflow-y-auto overscroll-none md:pt-0"
+          style={{ paddingTop: 'calc(3.5rem + env(safe-area-inset-top))' }}
+        >
           <FavoriteSongList />
         </main>
       </div>

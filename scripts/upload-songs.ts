@@ -183,6 +183,23 @@ function generateSafeFileKey(originalName: string): string {
   return `${CONFIG.r2Prefix}${safeName}-${timestamp}${ext}`;
 }
 
+/**
+ * 既存の曲タイトル一覧を取得（重複チェック用）
+ */
+async function getExistingSongTitles(): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from("songs")
+    .select("title");
+  
+  if (error) {
+    console.warn("⚠️ 既存曲の取得に失敗:", error.message);
+    return new Set();
+  }
+  
+  // タイトルを小文字に正規化してSetに格納
+  return new Set(data.map((song: { title: string }) => song.title.toLowerCase().trim()));
+}
+
 // ===========================================
 // メイン処理
 // ===========================================
@@ -212,8 +229,14 @@ async function main() {
   
   console.log(`📂 ${files.length} 件のMP3ファイルを検出\n`);
   
+  // 既存の曲タイトルを取得（重複チェック用）
+  console.log("🔍 既存の曲を確認中...");
+  const existingTitles = await getExistingSongTitles();
+  console.log(`   📚 データベースに ${existingTitles.size} 曲が登録済み\n`);
+  
   // 処理開始
   let successCount = 0;
+  let skipCount = 0;
   let errorCount = 0;
   
   for (let i = 0; i < files.length; i++) {
@@ -227,18 +250,25 @@ async function main() {
       const metadata = await getMP3Metadata(filePath);
       console.log(`   📋 ${metadata.title} / ${metadata.artist} (${metadata.duration}秒)`);
       
+      // 2. 重複チェック
+      if (existingTitles.has(metadata.title.toLowerCase().trim())) {
+        console.log(`   ⏭️ スキップ（既に登録済み）\n`);
+        skipCount++;
+        continue;
+      }
+      
       if (metadata.duration === 0) {
         console.log(`   ⚠️ 再生時間が取得できませんでした。スキップします。`);
         errorCount++;
         continue;
       }
       
-      // 2. R2にアップロード
+      // 3. R2にアップロード
       const fileKey = generateSafeFileKey(fileName);
       console.log(`   ☁️ R2にアップロード中... (${fileKey})`);
       await uploadToR2(filePath, fileKey);
       
-      // 3. Supabaseに登録
+      // 4. Supabaseに登録
       console.log(`   💾 Supabaseに登録中...`);
       await registerSong({
         title: metadata.title,
@@ -263,6 +293,7 @@ async function main() {
   console.log("=========================================");
   console.log(`🎉 アップロード完了!`);
   console.log(`   ✅ 成功: ${successCount} 件`);
+  console.log(`   ⏭️ スキップ（重複）: ${skipCount} 件`);
   console.log(`   ❌ 失敗: ${errorCount} 件`);
   console.log("=========================================");
 }
