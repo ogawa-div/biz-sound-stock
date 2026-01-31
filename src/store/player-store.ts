@@ -97,13 +97,43 @@ const updateMediaSessionState = (isPlaying: boolean) => {
   }
 };
 
+// Media Session の再生位置を更新（バックグラウンドでOSに状態を通知）
+const updateMediaSessionPosition = (position: number, duration: number) => {
+  if (typeof window === "undefined" || !("mediaSession" in navigator)) return;
+  try {
+    if (duration > 0 && "setPositionState" in navigator.mediaSession) {
+      navigator.mediaSession.setPositionState({
+        duration: duration,
+        playbackRate: 1,
+        position: Math.min(position, duration),
+      });
+    }
+  } catch {
+    // ignore - some browsers don't support setPositionState
+  }
+};
+
 export const usePlayerStore = create<PlayerState>((set, get) => {
   let progressInterval: ReturnType<typeof setInterval> | null = null;
   let previewTimeout: ReturnType<typeof setTimeout> | null = null;
 
   const startProgressTracking = () => {
     if (progressInterval) clearInterval(progressInterval);
-    progressInterval = setInterval(() => get()._updateProgress(), 1000);
+    // バックグラウンドでも動作するよう500msごとに更新
+    progressInterval = setInterval(() => {
+      const state = get();
+      state._updateProgress();
+      
+      // フォールバック: onendが発火しない場合の曲終了検知
+      const { howl, duration, progress, isPlaying, queue, currentIndex, next } = state;
+      if (howl && isPlaying && duration > 0 && progress >= duration - 0.5) {
+        // 曲の終端に達した場合、手動で次へ
+        console.log("Fallback: Song ended, moving to next");
+        if (queue.length > 0) {
+          next();
+        }
+      }
+    }, 500);
   };
 
   const stopProgressTracking = () => {
@@ -235,8 +265,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     },
 
     _updateProgress: () => {
-      const { howl } = get();
-      if (howl && howl.playing()) set({ progress: howl.seek() as number });
+      const { howl, duration } = get();
+      if (howl && howl.playing()) {
+        const currentPos = howl.seek() as number;
+        set({ progress: currentPos });
+        // バックグラウンドでもOSに再生位置を通知
+        updateMediaSessionPosition(currentPos, duration);
+      }
     },
 
     _loadSong: async (song) => {
@@ -267,7 +302,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
         const newHowl = new Howl({
           src: [streamData.url],
-          html5: true,
+          html5: true, // バックグラウンド再生に必須
+          preload: true, // 事前にロード
           volume: volume / 100,
           onplay: () => {
             set({ isPlaying: true, isLoading: false, duration: newHowl.duration() });
@@ -291,17 +327,53 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
             stopProgressTracking(); 
           },
           onend: () => { 
-            const { howl } = get();
-            if (howl === newHowl) { // このHowlインスタンスがまだ現在のものか確認
+            const currentState = get();
+            if (currentState.howl === newHowl) {
+              // バックグラウンド対策: 即座にnextを呼び出す
+              // setTimeoutを使わず同期的に処理してOSの割り込みを防ぐ
               stopProgressTracking(); 
-              clearPreviewTimeout(); 
-              next(); 
+              clearPreviewTimeout();
+              
+              // 次の曲の情報を先にセットしてOSに通知
+              const { queue, currentIndex } = currentState;
+              if (queue.length > 0) {
+                const nextIndex = (currentIndex + 1) % queue.length;
+                const nextSong = queue[nextIndex];
+                
+                // 即座にMedia Sessionを更新してOSに「まだ再生中」と伝える
+                if (nextSong && "mediaSession" in navigator) {
+                  try {
+                    navigator.mediaSession.metadata = new MediaMetadata({
+                      title: nextSong.title,
+                      artist: nextSong.artist || "BizSound Stock",
+                      album: "BizSound Radio",
+                      artwork: [
+                        { src: "/icons/icon.svg", sizes: "any", type: "image/svg+xml" },
+                        { src: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+                      ],
+                    });
+                    navigator.mediaSession.playbackState = "playing";
+                  } catch {
+                    // ignore
+                  }
+                }
+              }
+              
+              // 次の曲へ遷移
+              next();
             }
           },
           onload: () => set({ duration: newHowl.duration() }),
           onloaderror: (_, error) => { 
             console.error("Error loading audio:", error); 
             set({ isPlaying: false, isLoading: false }); 
+          },
+          onplayerror: () => {
+            // 再生エラー時のリカバリー（バックグラウンド復帰時など）
+            console.warn("Play error, attempting to recover...");
+            newHowl.once("unlock", () => {
+              newHowl.play();
+            });
           },
         });
         
