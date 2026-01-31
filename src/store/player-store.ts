@@ -1,6 +1,31 @@
 import { create } from "zustand";
-import { Howl } from "howler";
+import { Howl, Howler } from "howler";
 import type { Song, Playlist } from "@/types/database";
+
+// バックグラウンド再生のため、Web Audio APIを無効化してHTML5 Audioのみ使用
+if (typeof window !== "undefined") {
+  Howler.usingWebAudio = false;
+  
+  // バックグラウンドから復帰時のチェック
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      // フォアグラウンドに復帰した時、曲が終わっていたら次へ
+      const state = usePlayerStore.getState();
+      const { howl, duration, isPlaying, queue, next } = state;
+      
+      if (howl && isPlaying && duration > 0) {
+        const currentPos = howl.seek() as number;
+        // 曲の終端に達していたら次へ
+        if (currentPos >= duration - 1) {
+          console.log("Visibility change: Song ended while in background");
+          if (queue.length > 0) {
+            next();
+          }
+        }
+      }
+    }
+  });
+}
 
 interface PlayerState {
   isPlaying: boolean;
@@ -376,6 +401,30 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
             });
           },
         });
+        
+        // バックグラウンド再生対策: 内部のHTML Audio要素に直接endedイベントを追加
+        // Howler.jsのonendがバックグラウンドで発火しない場合のフォールバック
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const sounds = (newHowl as any)._sounds;
+          if (sounds && sounds.length > 0) {
+            const audioNode = sounds[0]._node;
+            if (audioNode && audioNode instanceof HTMLAudioElement) {
+              audioNode.addEventListener("ended", () => {
+                const currentState = get();
+                // Howlのonendがすでに処理した場合はスキップ
+                if (currentState.howl !== newHowl || currentState.isLoading) return;
+                
+                console.log("Native ended event fired");
+                stopProgressTracking();
+                clearPreviewTimeout();
+                next();
+              }, { once: true });
+            }
+          }
+        } catch {
+          // Internal API access failed, rely on Howler's onend
+        }
         
         // Media Session API の設定（ロック画面対応）
         const { play, pause, next: nextTrack, previous: prevTrack } = get();
