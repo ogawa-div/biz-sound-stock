@@ -226,8 +226,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ============================================
-  // CORE: Aggressive Resume (PWA Save & Reload)
-  // 切断された接続を再構築して復帰させる
+  // CORE: Aggressive Resume (Play First, Seek Later)
+  // まず再生を優先、位置復元はloadeddata後に行う
   // ============================================
   const aggressiveResume = useCallback(async () => {
     const audio = audioRef.current;
@@ -238,28 +238,34 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       await audio.play();
       // 成功した場合、handlePlayイベントでUI更新される
     } catch (error) {
-      console.warn("Standard play failed, PWA re-connection required:", error);
+      console.warn("PWA Resume failed, initiating 2-step recovery:", error);
       
       try {
-        // 2. PWA用 強制再接続フロー
-        // 通信が切れているため、現在位置を保存して繋ぎ直す
+        // 2. 現在位置を保存
         const savedTime = audio.currentTime;
         
-        // srcを自分自身に代入し直して、ブラウザに「新規ロード」と認識させる
+        // 3. 「データ読み込み完了」を待ってから位置を復元
+        // ※重要：バッファがないうちにcurrentTimeをいじらない！
+        const restorePosition = () => {
+          if (savedTime > 0 && audio.duration) {
+            console.log("Restoring position to:", savedTime);
+            audio.currentTime = savedTime;
+          }
+        };
+        audio.addEventListener("loadeddata", restorePosition, { once: true });
+        
+        // 4. 強制リロード（srcを入れ直して新しいリクエストとして認識させる）
         const currentSrc = audio.src;
         audio.src = currentSrc;
+        audio.load();
         
-        // ロード待機せずに位置を戻す
-        // iOSはメタデータがあればこれを受け入れることが多い
-        audio.currentTime = savedTime;
-        
-        // 再生開始
+        // 5. 再生開始（まずは0秒地点から）
+        // 音声データが届き次第、上記のEventListenerが発火して位置が戻る
         await audio.play();
-        // setIsPlaying(true) は呼ばない - onPlayイベントに任せる
-        console.log("PWA Re-connection successful");
+        console.log("2-step recovery: Play started, waiting for loadeddata to restore position");
+        
       } catch (retryError) {
-        console.error("PWA Re-connection failed:", retryError);
-        // 復旧不能なら停止状態に戻す
+        console.error("2-step recovery failed:", retryError);
         setIsPlaying(false);
         if ("mediaSession" in navigator) {
           navigator.mediaSession.playbackState = "paused";
