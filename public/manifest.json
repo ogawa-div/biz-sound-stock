@@ -4,8 +4,8 @@
   "description": "店舗向け著作権フリーBGMサービス",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#1e3a8a",
+  "background_color": "#0F172A",
+  "theme_color": "#0F172A",
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "ja",
@@ -15,13 +15,13 @@
       "src": "/icons/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
       "src": "/apple-icon.png",
       "sizes": "180x180",
       "type": "image/png",
-      "purpose": "apple touch icon"
+      "purpose": "any maskable"
     }
   ],
   "shortcuts": [

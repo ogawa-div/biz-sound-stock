@@ -55,6 +55,48 @@ const getStreamUrl = async (songId: string, userId: string | null): Promise<Stre
   return response.json();
 };
 
+// Media Session API: ロック画面・通知センターでの再生コントロール
+const setupMediaSession = (
+  song: Song,
+  handlers: {
+    play: () => void;
+    pause: () => void;
+    next: () => void;
+    previous: () => void;
+  }
+) => {
+  if (typeof window === "undefined" || !("mediaSession" in navigator)) return;
+
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: song.title,
+      artist: song.artist || "BizSound Stock",
+      album: "BizSound Radio",
+      artwork: [
+        { src: "/icons/icon.svg", sizes: "any", type: "image/svg+xml" },
+        { src: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+      ],
+    });
+
+    navigator.mediaSession.setActionHandler("play", handlers.play);
+    navigator.mediaSession.setActionHandler("pause", handlers.pause);
+    navigator.mediaSession.setActionHandler("previoustrack", handlers.previous);
+    navigator.mediaSession.setActionHandler("nexttrack", handlers.next);
+  } catch (error) {
+    console.warn("Media Session API not supported:", error);
+  }
+};
+
+// Media Session の再生状態を更新
+const updateMediaSessionState = (isPlaying: boolean) => {
+  if (typeof window === "undefined" || !("mediaSession" in navigator)) return;
+  try {
+    navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+  } catch {
+    // ignore
+  }
+};
+
 export const usePlayerStore = create<PlayerState>((set, get) => {
   let progressInterval: ReturnType<typeof setInterval> | null = null;
   let previewTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -229,6 +271,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
           volume: volume / 100,
           onplay: () => {
             set({ isPlaying: true, isLoading: false, duration: newHowl.duration() });
+            updateMediaSessionState(true);
             startProgressTracking();
             if (streamData.isPreview && streamData.previewDuration) {
               previewTimeout = setTimeout(() => {
@@ -236,12 +279,17 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
                 if (howl === newHowl) { // このHowlインスタンスがまだ現在のものか確認
                   howl.pause(); 
                   set({ isPlaying: false, showUpgradePrompt: true }); 
+                  updateMediaSessionState(false);
                   stopProgressTracking(); 
                 }
               }, streamData.previewDuration * 1000);
             }
           },
-          onpause: () => { set({ isPlaying: false }); stopProgressTracking(); },
+          onpause: () => { 
+            set({ isPlaying: false }); 
+            updateMediaSessionState(false);
+            stopProgressTracking(); 
+          },
           onend: () => { 
             const { howl } = get();
             if (howl === newHowl) { // このHowlインスタンスがまだ現在のものか確認
@@ -255,6 +303,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
             console.error("Error loading audio:", error); 
             set({ isPlaying: false, isLoading: false }); 
           },
+        });
+        
+        // Media Session API の設定（ロック画面対応）
+        const { play, pause, next: nextTrack, previous: prevTrack } = get();
+        setupMediaSession(song, {
+          play,
+          pause,
+          next: nextTrack,
+          previous: prevTrack,
         });
         
         // 再度確認：ロード完了時にまだこの曲が選択されているか
