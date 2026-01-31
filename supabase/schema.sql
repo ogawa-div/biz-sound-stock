@@ -357,7 +357,10 @@ CREATE TRIGGER increment_song_play_count
 -- ===========================================
 
 -- View: Top songs by play count
-CREATE VIEW top_songs AS
+-- SECURITY INVOKER: 呼び出すユーザーの権限でRLSが適用される
+CREATE VIEW top_songs 
+WITH (security_invoker = true)
+AS
 SELECT 
   s.id,
   s.title,
@@ -372,7 +375,10 @@ WHERE s.is_active = TRUE
 ORDER BY s.play_count DESC;
 
 -- View: Play analytics by business type
-CREATE VIEW analytics_by_business_type AS
+-- SECURITY INVOKER: 呼び出すユーザーの権限でRLSが適用される
+CREATE VIEW analytics_by_business_type
+WITH (security_invoker = true)
+AS
 SELECT 
   p.business_type,
   s.genre,
