@@ -9,7 +9,7 @@ export default function OfflinePage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4 text-center">
+    <div className="flex min-h-safe-screen flex-col items-center justify-center bg-background p-4 pt-safe pb-safe text-center">
       {/* Logo */}
       <div className="mb-8">
         <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-primary">

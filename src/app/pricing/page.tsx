@@ -97,7 +97,7 @@ function PricingContent() {
   // Success message
   if (showSuccess) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="flex min-h-safe-screen items-center justify-center bg-background p-4 pt-safe pb-safe">
         <Card className="w-full max-w-md border-green-500/50 bg-card/50 backdrop-blur">
           <CardContent className="pt-8 pb-8 text-center">
             <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-500/10">
@@ -125,7 +125,7 @@ function PricingContent() {
   // Canceled message
   if (showCanceled) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="flex min-h-safe-screen items-center justify-center bg-background p-4 pt-safe pb-safe">
         <Card className="w-full max-w-md border-border/50 bg-card/50 backdrop-blur">
           <CardContent className="pt-8 pb-8 text-center">
             <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-muted">
@@ -159,9 +159,9 @@ function PricingContent() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-safe-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border">
+      <header className="border-b border-border pt-safe">
         <div className="container mx-auto flex items-center gap-4 px-4 py-4">
           <Link href="/" className="text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-5 w-5" />
@@ -378,7 +378,7 @@ function PricingContent() {
 export default function PricingPage() {
   return (
     <Suspense fallback={
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex min-h-safe-screen items-center justify-center bg-background pt-safe">
         <Loader2 className="h-8 w-8 animate-spin text-accent" />
       </div>
     }>

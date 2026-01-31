@@ -7,7 +7,7 @@ import { Music, CheckCircle, Mail } from "lucide-react"
 
 export default function SignupSuccessPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+    <div className="flex min-h-safe-screen items-center justify-center bg-background p-4 pt-safe pb-safe">
       <div className="w-full max-w-md text-center">
         {/* Logo */}
         <div className="mb-8">
