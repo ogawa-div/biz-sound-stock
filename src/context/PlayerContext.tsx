@@ -226,35 +226,40 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ============================================
-  // CORE: Aggressive Resume (Micro-Seek Wake Up)
-  // srcは触らず、微小シークでデコーダーを復帰させる
+  // CORE: Aggressive Resume (PWA Save & Reload)
+  // 切断された接続を再構築して復帰させる
   // ============================================
   const aggressiveResume = useCallback(async () => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || !audio.src) return;
 
     try {
       // 1. まず普通に再生を試みる
       await audio.play();
       // 成功した場合、handlePlayイベントでUI更新される
     } catch (error) {
-      console.warn("Play failed, attempting Micro-Seek Wake Up:", error);
+      console.warn("Standard play failed, PWA re-connection required:", error);
       
       try {
-        // 2. Micro-Seek策:
-        // 再生位置を0.1秒戻すことで、iOSのデコーダーを
-        // 強制的に「シーク処理」として叩き起こす
-        if (audio.duration) {
-          audio.currentTime = Math.max(0, audio.currentTime - 0.1);
-        }
+        // 2. PWA用 強制再接続フロー
+        // 通信が切れているため、現在位置を保存して繋ぎ直す
+        const savedTime = audio.currentTime;
         
-        // シーク直後に再生
+        // srcを自分自身に代入し直して、ブラウザに「新規ロード」と認識させる
+        const currentSrc = audio.src;
+        audio.src = currentSrc;
+        
+        // ロード待機せずに位置を戻す
+        // iOSはメタデータがあればこれを受け入れることが多い
+        audio.currentTime = savedTime;
+        
+        // 再生開始
         await audio.play();
-        // setIsPlaying(true) は呼ばない！onPlayイベントに任せる
-        console.log("Micro-Seek Wake Up successful");
+        // setIsPlaying(true) は呼ばない - onPlayイベントに任せる
+        console.log("PWA Re-connection successful");
       } catch (retryError) {
-        console.error("Wake Up failed:", retryError);
-        // 失敗したら静かにあきらめる（UIを停止に戻す）
+        console.error("PWA Re-connection failed:", retryError);
+        // 復旧不能なら停止状態に戻す
         setIsPlaying(false);
         if ("mediaSession" in navigator) {
           navigator.mediaSession.playbackState = "paused";
