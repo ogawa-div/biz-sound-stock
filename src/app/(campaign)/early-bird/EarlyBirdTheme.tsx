@@ -75,10 +75,9 @@ const EarlyBirdTheme: React.FC = () => {
               <p className="text-slate-500 text-lg mt-2">（税込）から</p>
             </div>
             
-            {/* シンプルな説明文 */}
-            <p className="font-sans text-slate-600 text-lg max-w-md mb-10">
-              店舗でのBGM利用が規約違反にならない、<br/>
-              経営者のための安心・安全な選択肢。
+            {/* 説明文 - 通常LPと同様の装飾 */}
+            <p className="font-sans font-bold text-slate-600 text-xl max-w-md bg-white p-4 border-2 border-black shadow-[4px_4px_0px_#000] transform rotate-1 mb-10">
+              店舗でのBGM利用が規約違反にならない、経営者のための安心・安全な選択肢。
             </p>
             
             {/* CTAボタン */}
