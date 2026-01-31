@@ -14,7 +14,6 @@ import type { Song, Playlist } from "@/types/database";
 // Types
 // ============================================
 interface PlayerContextType {
-  // State (Read-only from Audio events)
   isPlaying: boolean;
   isLoading: boolean;
   currentSong: Song | null;
@@ -28,7 +27,6 @@ interface PlayerContextType {
   isPreview: boolean;
   showUpgradePrompt: boolean;
 
-  // Actions
   playSong: (song: Song, playlist?: Playlist, queue?: Song[]) => void;
   play: () => void;
   pause: () => void;
@@ -67,24 +65,10 @@ const getAudio = (): HTMLAudioElement => {
   if (!globalAudio) {
     globalAudio = new Audio();
     globalAudio.preload = "auto";
-    // iOS Safari: インラインで再生
     globalAudio.setAttribute("playsinline", "true");
     globalAudio.setAttribute("webkit-playsinline", "true");
   }
   return globalAudio;
-};
-
-// Safari/iOS検出
-const isSafari = (): boolean => {
-  if (typeof window === "undefined") return false;
-  const ua = navigator.userAgent;
-  return /Safari/.test(ua) && !/Chrome/.test(ua);
-};
-
-const isIOS = (): boolean => {
-  if (typeof window === "undefined") return false;
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 };
 
 // ============================================
@@ -103,10 +87,8 @@ const getStreamUrl = async (
   return response.json();
 };
 
-// Media Session API: ロック画面・通知センター対応
 const updateMediaSessionMetadata = (song: Song | null) => {
   if (typeof window === "undefined" || !("mediaSession" in navigator)) return;
-
   try {
     if (song) {
       navigator.mediaSession.metadata = new MediaMetadata({
@@ -153,7 +135,7 @@ const updateMediaSessionPosition = (position: number, duration: number) => {
 // ============================================
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // ============================================
-  // Refs (Mutable, no re-render)
+  // Refs
   // ============================================
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const userIdRef = useRef<string | null>(null);
@@ -164,17 +146,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const previewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
-  // ============================================
-  // NEW: Race Condition 対策用 Refs
-  // ============================================
-  // Play操作が進行中かどうかのフラグ (AbortError防止)
-  const isPlayPendingRef = useRef<boolean>(false);
-  // 現在のPlay Promise (競合検出用)
-  const currentPlayPromiseRef = useRef<Promise<void> | null>(null);
-  // src変更中フラグ (意図しないpauseイベント無視用)
-  const isChangingSourceRef = useRef<boolean>(false);
-  
-  // Prefetch cache for next song (CRITICAL for background playback)
+  // Prefetch cache for next song
   const nextSongCacheRef = useRef<{
     songId: string;
     url: string;
@@ -183,7 +155,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   } | null>(null);
 
   // ============================================
-  // State (Driven by Audio events)
+  // State
   // ============================================
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -215,52 +187,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // ============================================
-  // MODIFIED: Progress Tracking with strict validation
-  // ============================================
-  const lastProgressRef = useRef<number>(0);
-  const stuckCountRef = useRef<number>(0);
-  
   const startProgressTracking = useCallback(() => {
     stopProgressTracking();
-    lastProgressRef.current = 0;
-    stuckCountRef.current = 0;
-    
     progressIntervalRef.current = setInterval(() => {
       const audio = audioRef.current;
-      
-      // 基本条件: 再生中 かつ データ準備完了
-      if (audio && !audio.paused && audio.readyState >= 3) {
-        const currentTime = audio.currentTime;
-        
-        // Safari PWA対策: 時間が進んでいるかチェック
-        if (Math.abs(currentTime - lastProgressRef.current) < 0.01) {
-          // 時間が進んでいない
-          stuckCountRef.current++;
-          
-          if (stuckCountRef.current >= 3) {
-            // 3回連続で進んでいない = サイレント状態の可能性
-            console.log("Progress stuck, audio may be silent");
-            // UIを一時停止状態に同期（ユーザーに再度押させる）
-            setIsPlaying(false);
-            updateMediaSessionState(false);
-            stopProgressTracking();
-            return;
-          }
-        } else {
-          // 正常に進んでいる
-          stuckCountRef.current = 0;
-        }
-        
-        lastProgressRef.current = currentTime;
-        setProgress(currentTime);
-        updateMediaSessionPosition(currentTime, audio.duration || 0);
+      if (audio && !audio.paused && audio.readyState >= 2) {
+        setProgress(audio.currentTime);
+        updateMediaSessionPosition(audio.currentTime, audio.duration || 0);
       }
     }, 500);
   }, [stopProgressTracking]);
 
   // ============================================
-  // Prefetch Next Song (CRITICAL for background playback)
+  // Prefetch Next Song
   // ============================================
   const prefetchNextSong = useCallback(async () => {
     const currentQueue = queueRef.current;
@@ -270,12 +209,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const nextSong = currentQueue[nextIndex];
 
     if (!nextSong) return;
-
-    // Skip if already cached
     if (nextSongCacheRef.current?.songId === nextSong.id) return;
 
     try {
-      console.log("Prefetching next song:", nextSong.title);
       const streamData = await getStreamUrl(nextSong.id, userIdRef.current);
       nextSongCacheRef.current = {
         songId: nextSong.id,
@@ -283,173 +219,51 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         isPreview: streamData.isPreview,
         previewDuration: streamData.previewDuration || 30,
       };
-      console.log("Next song prefetched successfully");
     } catch (error) {
-      console.error("Failed to prefetch next song:", error);
+      console.error("Failed to prefetch:", error);
       nextSongCacheRef.current = null;
     }
   }, []);
 
   // ============================================
-  // NEW: Safe Play Method (Race Condition対策 + Safari PWA対策)
+  // CORE: Aggressive Resume (iOS PWA Force Reload)
+  // シンプルな Try-Catch-Reload パターン
   // ============================================
-  const safePlay = useCallback(async (newSrc?: string): Promise<boolean> => {
+  const aggressiveResume = useCallback(async () => {
     const audio = audioRef.current;
-    if (!audio) return false;
-
-    // 既にplay操作が進行中なら待機
-    if (isPlayPendingRef.current && currentPlayPromiseRef.current) {
-      console.log("Play already pending, waiting...");
-      try {
-        await currentPlayPromiseRef.current;
-      } catch {
-        // 前のPromiseがエラーでも続行
-      }
-    }
-
-    isPlayPendingRef.current = true;
+    if (!audio || !audio.src) return;
 
     try {
-      // 新しいsrcがある場合
-      if (newSrc) {
-        // src変更中フラグを立てる（pauseイベント無視用）
-        isChangingSourceRef.current = true;
-        
-        audio.src = newSrc;
-        
-        // Safari用: 明示的にloadを呼び、canplay を待つ
-        await new Promise<void>((resolve, reject) => {
-          const onCanPlay = () => {
-            audio.removeEventListener("canplay", onCanPlay);
-            audio.removeEventListener("error", onError);
-            resolve();
-          };
-          const onError = (e: Event) => {
-            audio.removeEventListener("canplay", onCanPlay);
-            audio.removeEventListener("error", onError);
-            reject(new Error(`Load error: ${e}`));
-          };
-          
-          audio.addEventListener("canplay", onCanPlay, { once: true });
-          audio.addEventListener("error", onError, { once: true });
-          
-          audio.load();
-          
-          // タイムアウト (10秒)
-          setTimeout(() => {
-            audio.removeEventListener("canplay", onCanPlay);
-            audio.removeEventListener("error", onError);
-            resolve();
-          }, 10000);
-        });
-        
-        isChangingSourceRef.current = false;
-      } else if (audio.src && (isSafari() || isIOS())) {
-        // ============================================
-        // Safari PWA 対策: 既存srcでの再生再開時
-        // バックグラウンドからの復帰でオーディオセッションが
-        // サスペンドされている場合、強制的にリフレッシュする
-        // ============================================
-        console.log("safePlay: Safari/iOS detected, refreshing audio session");
-        
-        const currentTime = audio.currentTime;
-        const currentSrc = audio.src;
-        
-        // Safari用トリック1: currentTimeを再設定してストリームを起こす
-        audio.currentTime = currentTime;
-        
-        // それでもダメな場合に備えて、再生後に監視する
-        const playPromise = audio.play();
-        currentPlayPromiseRef.current = playPromise;
-        
-        await playPromise;
-        
-        // Safari PWA対策: 再生が実際に機能しているか確認
-        // 500ms後にcurrentTimeが変化していなければ、強制リロード
-        await new Promise<void>((resolve) => {
-          const checkTime = audio.currentTime;
-          setTimeout(async () => {
-            // 時間が全く進んでいない、かつ再生中のはず = 実際には再生されていない
-            if (!audio.paused && Math.abs(audio.currentTime - checkTime) < 0.1) {
-              console.log("safePlay: Audio stuck, forcing reload");
-              
-              // 強制リロード
-              isChangingSourceRef.current = true;
-              audio.src = "";
-              audio.src = currentSrc;
-              audio.load();
-              
-              // canplay待機
-              await new Promise<void>((res) => {
-                const onReady = () => {
-                  audio.removeEventListener("canplay", onReady);
-                  res();
-                };
-                audio.addEventListener("canplay", onReady, { once: true });
-                setTimeout(() => {
-                  audio.removeEventListener("canplay", onReady);
-                  res();
-                }, 5000);
-              });
-              
-              // 元の位置にシーク
-              audio.currentTime = currentTime;
-              isChangingSourceRef.current = false;
-              
-              // 再度再生
-              try {
-                await audio.play();
-                console.log("safePlay: Forced reload successful");
-              } catch (e) {
-                console.error("safePlay: Forced reload failed:", e);
-              }
-            }
-            resolve();
-          }, 500);
-        });
-        
-        console.log("safePlay: Safari playback started successfully");
-        return true;
-      }
-
-      // 通常の再生実行
-      const playPromise = audio.play();
-      currentPlayPromiseRef.current = playPromise;
-
-      await playPromise;
-      console.log("safePlay: Playback started successfully");
-      return true;
+      // 1. まず普通に再生を試みる
+      await audio.play();
+      // 成功した場合、handlePlayイベントでUI更新される
+    } catch (error) {
+      console.warn("Standard play failed, attempting Force Reload:", error);
       
-    } catch (error: unknown) {
-      const err = error as Error;
-      
-      // AbortError: Safariで別の操作が割り込んだ場合（無視してOK）
-      if (err.name === "AbortError") {
-        console.log("safePlay: AbortError (interrupted, ignoring)");
-        return false;
-      }
-      
-      // NotAllowedError: ユーザー操作が必要
-      if (err.name === "NotAllowedError") {
-        console.warn("safePlay: NotAllowedError - User interaction required");
-        // UIを停止状態に戻す（ユーザーに再度押させるため）
+      // 2. エラーが出たら、即座にリロードして再接続
+      try {
+        const savedTime = audio.currentTime;
+        const savedSrc = audio.src;
+        
+        // 物理的に再接続
+        audio.src = "";
+        audio.src = savedSrc;
+        audio.load();
+        audio.currentTime = savedTime;
+        
+        // 再度再生
+        await audio.play();
+        console.log("Force Reload successful");
+      } catch (retryError) {
+        console.error("Force Reload failed:", retryError);
         setIsPlaying(false);
         updateMediaSessionState(false);
-        return false;
       }
-      
-      console.error("safePlay: Playback failed:", err);
-      return false;
-      
-    } finally {
-      isPlayPendingRef.current = false;
-      currentPlayPromiseRef.current = null;
-      isChangingSourceRef.current = false;
     }
   }, []);
 
   // ============================================
-  // Core: Load and Play Song (MODIFIED: safePlay使用)
+  // Load and Play Song
   // ============================================
   const loadAndPlaySong = useCallback(
     async (song: Song, index: number, cachedStreamData?: { url: string; isPreview: boolean; previewDuration: number }) => {
@@ -461,38 +275,39 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setShowUpgradePrompt(false);
 
       try {
-        // Use cached data if available, otherwise fetch
         const streamData = cachedStreamData || await getStreamUrl(song.id, userIdRef.current);
 
-        // Update refs immediately (sync)
         isPreviewRef.current = streamData.isPreview;
         previewDurationRef.current = streamData.previewDuration || 30;
 
-        // Update React state
         setCurrentSong(song);
         setCurrentIndex(index);
         currentIndexRef.current = index;
         setIsPreview(streamData.isPreview);
         
-        // Update Media Session metadata
         updateMediaSessionMetadata(song);
 
-        // MODIFIED: safePlayを使用して再生
-        const success = await safePlay(streamData.url);
-
-        if (success) {
-          // Prefetch next song after current song starts playing
+        // srcをセットしてロード
+        audio.src = streamData.url;
+        audio.load();
+        
+        // 再生
+        try {
+          await audio.play();
           prefetchNextSong();
+        } catch (playError) {
+          console.warn("Initial play failed:", playError);
+          setIsLoading(false);
+        }
 
-          // Preview timeout
-          if (streamData.isPreview && streamData.previewDuration) {
-            previewTimeoutRef.current = setTimeout(() => {
-              if (audio && isPreviewRef.current) {
-                audio.pause();
-                setShowUpgradePrompt(true);
-              }
-            }, streamData.previewDuration * 1000);
-          }
+        // Preview timeout
+        if (streamData.isPreview && streamData.previewDuration) {
+          previewTimeoutRef.current = setTimeout(() => {
+            if (audio && isPreviewRef.current) {
+              audio.pause();
+              setShowUpgradePrompt(true);
+            }
+          }, streamData.previewDuration * 1000);
         }
         
       } catch (error) {
@@ -500,15 +315,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     },
-    [clearPreviewTimeout, prefetchNextSong, safePlay]
+    [clearPreviewTimeout, prefetchNextSong]
   );
 
   // ============================================
-  // Actions (MODIFIED: safePlay使用)
+  // Actions
   // ============================================
   const play = useCallback(() => {
-    safePlay();
-  }, [safePlay]);
+    aggressiveResume();
+  }, [aggressiveResume]);
 
   const pause = useCallback(() => {
     const audio = audioRef.current;
@@ -521,12 +336,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const audio = audioRef.current;
     if (audio) {
       if (audio.paused) {
-        safePlay();
+        aggressiveResume();
       } else {
         audio.pause();
       }
     }
-  }, [safePlay]);
+  }, [aggressiveResume]);
 
   const next = useCallback(() => {
     const currentQueue = queueRef.current;
@@ -536,10 +351,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const nextSong = currentQueue[nextIndex];
 
     if (nextSong) {
-      // Check for cached URL
       const cache = nextSongCacheRef.current;
       if (cache && cache.songId === nextSong.id) {
-        nextSongCacheRef.current = null; // Clear cache
+        nextSongCacheRef.current = null;
         loadAndPlaySong(nextSong, nextIndex, {
           url: cache.url,
           isPreview: cache.isPreview,
@@ -556,7 +370,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const currentQueue = queueRef.current;
     if (currentQueue.length === 0) return;
 
-    // If more than 3 seconds played, restart current song
     if (audio && audio.currentTime > 3) {
       audio.currentTime = 0;
       setProgress(0);
@@ -580,11 +393,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const index = songQueue.findIndex((s) => s.id === song.id);
       const finalIndex = index >= 0 ? index : 0;
 
-      // Update refs immediately
       queueRef.current = songQueue;
       currentIndexRef.current = finalIndex;
 
-      // Update React state
       setQueue(songQueue);
       setCurrentPlaylist(playlist || null);
 
@@ -606,7 +417,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const seek = useCallback((time: number) => {
     const audio = audioRef.current;
     if (audio && audio.duration > 0) {
-      // Preview mode: prevent seeking beyond preview duration
       if (isPreviewRef.current && time > previewDurationRef.current) {
         return;
       }
@@ -651,16 +461,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [clearPreviewTimeout, stopProgressTracking]);
 
   // ============================================
-  // Audio Event Handlers (Single Source of Truth)
+  // Audio Event Handlers
   // ============================================
   useEffect(() => {
     const audio = getAudio();
     audioRef.current = audio;
     audio.volume = volume / 100;
 
-    // ============================================
-    // Event: play - Audio started playing
-    // ============================================
     const handlePlay = () => {
       setIsPlaying(true);
       setIsLoading(false);
@@ -668,33 +475,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       startProgressTracking();
     };
 
-    // ============================================
-    // Event: pause - Audio paused
-    // MODIFIED: src変更中やseeking中は無視
-    // ============================================
     const handlePause = () => {
-      // src変更中の場合は無視（曲切り替え時の一瞬のpause）
-      if (isChangingSourceRef.current) {
-        console.log("handlePause: Ignoring (source changing)");
-        return;
-      }
-      
-      // シーク中の場合も無視
-      if (audio.seeking) {
-        console.log("handlePause: Ignoring (seeking)");
-        return;
-      }
-      
       setIsPlaying(false);
       updateMediaSessionState(false);
       stopProgressTracking();
     };
 
-    // ============================================
-    // Event: ended - CRITICAL for background playback
-    // ============================================
     const handleEnded = () => {
-      console.log("Audio ended event fired");
       stopProgressTracking();
       clearPreviewTimeout();
 
@@ -706,81 +493,59 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       if (!nextSong) return;
 
-      // Update Media Session metadata immediately
       updateMediaSessionMetadata(nextSong);
 
-      // Check if we have prefetched data for the next song
       const cache = nextSongCacheRef.current;
-      const hasCachedUrl = cache && cache.songId === nextSong.id;
-
-      if (hasCachedUrl) {
-        console.log("Using cached URL for next song");
+      if (cache && cache.songId === nextSong.id) {
         nextSongCacheRef.current = null;
-        
-        // Update refs
         currentIndexRef.current = nextIndex;
         isPreviewRef.current = cache.isPreview;
         previewDurationRef.current = cache.previewDuration;
 
-        // Update React state
         setCurrentSong(nextSong);
         setCurrentIndex(nextIndex);
         setIsPreview(cache.isPreview);
 
-        // Use safePlay with cached URL
-        safePlay(cache.url).then((success) => {
-          if (success) {
-            prefetchNextSong();
-            
-            if (cache.isPreview && cache.previewDuration) {
-              previewTimeoutRef.current = setTimeout(() => {
-                if (audio && isPreviewRef.current) {
-                  audio.pause();
-                  setShowUpgradePrompt(true);
-                }
-              }, cache.previewDuration * 1000);
-            }
+        // 直接再生（エラーならリロード）
+        audio.src = cache.url;
+        audio.load();
+        audio.play().then(() => {
+          prefetchNextSong();
+          if (cache.isPreview && cache.previewDuration) {
+            previewTimeoutRef.current = setTimeout(() => {
+              if (audio && isPreviewRef.current) {
+                audio.pause();
+                setShowUpgradePrompt(true);
+              }
+            }, cache.previewDuration * 1000);
           }
+        }).catch((e) => {
+          console.error("handleEnded play failed:", e);
         });
       } else {
-        console.log("No cache available, loading next song");
         currentIndexRef.current = nextIndex;
         loadAndPlaySong(nextSong, nextIndex);
       }
     };
 
-    // ============================================
-    // Event: loadedmetadata - Duration available
-    // ============================================
     const handleLoadedMetadata = () => {
       setDuration(audio.duration || 0);
     };
 
-    // ============================================
-    // Event: error - Handle playback errors
-    // ============================================
     const handleError = (e: Event) => {
       console.error("Audio error:", e);
       setIsLoading(false);
     };
 
-    // ============================================
-    // Event: waiting - Buffering
-    // ============================================
     const handleWaiting = () => {
       setIsLoading(true);
     };
 
-    // ============================================
-    // Event: canplay - Ready to play
-    // ============================================
     const handleCanPlay = () => {
       setIsLoading(false);
     };
 
-    // ============================================
-    // Attach Event Listeners
-    // ============================================
+    // Event Listeners
     audio.addEventListener("play", handlePlay);
     audio.addEventListener("pause", handlePause);
     audio.addEventListener("ended", handleEnded);
@@ -790,24 +555,22 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     audio.addEventListener("canplay", handleCanPlay);
 
     // ============================================
-    // Setup Media Session handlers (MODIFIED: safePlay使用)
+    // MediaSession: aggressiveResume を使用
     // ============================================
     if ("mediaSession" in navigator) {
       try {
         navigator.mediaSession.setActionHandler("play", () => {
-          console.log("MediaSession: play action");
-          safePlay();
+          console.log("MediaSession: play -> aggressiveResume");
+          aggressiveResume();
         });
         navigator.mediaSession.setActionHandler("pause", () => {
-          console.log("MediaSession: pause action");
+          console.log("MediaSession: pause");
           audio.pause();
         });
         navigator.mediaSession.setActionHandler("previoustrack", () => {
-          console.log("MediaSession: previous action");
           previous();
         });
         navigator.mediaSession.setActionHandler("nexttrack", () => {
-          console.log("MediaSession: next action");
           next();
         });
       } catch {
@@ -815,39 +578,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // ============================================
-    // visibilitychange: バックグラウンドからの復帰検知
-    // Safari PWA対策: 復帰時にオーディオ状態を同期
-    // ============================================
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        console.log("App became visible, checking audio state");
-        
-        // オーディオの実際の状態とReact状態を同期
-        const audioActuallyPlaying = !audio.paused;
-        
-        // Safari PWA: "再生中"のはずなのに音が出ていない可能性をチェック
-        if (audioActuallyPlaying && (isSafari() || isIOS())) {
-          // 500ms後にcurrentTimeが進んでいるか確認
-          const checkTime = audio.currentTime;
-          setTimeout(() => {
-            if (!audio.paused && Math.abs(audio.currentTime - checkTime) < 0.1) {
-              // 時間が進んでいない = サイレント状態
-              console.log("visibilityChange: Audio silent, updating UI to paused");
-              setIsPlaying(false);
-              updateMediaSessionState(false);
-              stopProgressTracking();
-            }
-          }, 500);
-        }
-      }
-    };
-    
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    // ============================================
-    // Cleanup
-    // ============================================
     return () => {
       audio.removeEventListener("play", handlePlay);
       audio.removeEventListener("pause", handlePause);
@@ -856,7 +586,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audio.removeEventListener("error", handleError);
       audio.removeEventListener("waiting", handleWaiting);
       audio.removeEventListener("canplay", handleCanPlay);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
       stopProgressTracking();
       clearPreviewTimeout();
     };
@@ -865,7 +594,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     next,
     previous,
     loadAndPlaySong,
-    safePlay,
+    aggressiveResume,
     prefetchNextSong,
     startProgressTracking,
     stopProgressTracking,
@@ -876,7 +605,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // Context Value
   // ============================================
   const value: PlayerContextType = {
-    // State
     isPlaying,
     isLoading,
     currentSong,
@@ -889,7 +617,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     isMuted,
     isPreview,
     showUpgradePrompt,
-    // Actions
     playSong,
     play,
     pause,
@@ -921,7 +648,7 @@ export function usePlayer() {
 }
 
 // ============================================
-// Selectors (for compatibility with existing code)
+// Selectors
 // ============================================
 export const usePlayerState = () => {
   const player = usePlayer();
