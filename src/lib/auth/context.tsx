@@ -25,7 +25,8 @@ const AuthContext = createContext<AuthContextType>({
 })
 
 // プロファイル取得（fetch API使用）
-async function fetchProfileFromSupabase(userId: string): Promise<Profile | null> {
+// RLS対応: ユーザーのaccess_tokenを使用して認証
+async function fetchProfileFromSupabase(userId: string, accessToken: string): Promise<Profile | null> {
   const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=*`;
   const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -33,7 +34,7 @@ async function fetchProfileFromSupabase(userId: string): Promise<Profile | null>
     const response = await fetch(url, {
       headers: {
         "apikey": apiKey || "",
-        "Authorization": `Bearer ${apiKey}`,
+        "Authorization": `Bearer ${accessToken}`, // ユーザーのトークンを使用
       },
     });
 
@@ -72,16 +73,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return supabaseRef.current
   }
 
-  const fetchProfile = async (userId: string) => {
-    const data = await fetchProfileFromSupabase(userId)
+  const fetchProfile = async (userId: string, accessToken: string) => {
+    const data = await fetchProfileFromSupabase(userId, accessToken)
     if (data) {
       setProfile(data)
     }
   }
 
   const refreshProfile = async () => {
-    if (user) {
-      await fetchProfile(user.id)
+    if (user && session?.access_token) {
+      await fetchProfile(user.id, session.access_token)
     }
   }
 
@@ -109,8 +110,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session)
         setUser(session?.user ?? null)
 
-        if (session?.user) {
-          await fetchProfile(session.user.id)
+        if (session?.user && session.access_token) {
+          await fetchProfile(session.user.id, session.access_token)
         }
       } catch (error) {
         console.error("Error getting session:", error)
@@ -132,8 +133,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session)
       setUser(session?.user ?? null)
 
-      if (session?.user) {
-        await fetchProfile(session.user.id)
+      if (session?.user && session.access_token) {
+        await fetchProfile(session.user.id, session.access_token)
       } else {
         setProfile(null)
       }
