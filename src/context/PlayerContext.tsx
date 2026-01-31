@@ -153,6 +153,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     isPreview: boolean;
     previewDuration: number;
   } | null>(null);
+  
+  // 現在の曲のストリームURL情報（バックグラウンド復帰時に再取得用）
+  const currentStreamRef = useRef<{
+    songId: string;
+    url: string;
+    expiresAt: number;
+  } | null>(null);
 
   // ============================================
   // State
@@ -226,65 +233,100 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ============================================
-  // CORE: Resume Playback (Complete Separation)
-  // Foreground と Background を物理的に分断
+  // CORE: Resume Playback
+  // Foreground: 通常再生（async/await OK）
+  // Background: 完全同期 + URL再取得
   // ============================================
-  const resumePlayback = useCallback(async () => {
+  
+  // フォアグラウンド用（通常の再生）
+  const resumePlaybackForeground = useCallback(async () => {
     const audio = audioRef.current;
     if (!audio || !audio.src) return;
-
-    // -----------------------------------------------------------
-    // 【ルートA: フォアグラウンド】
-    // ユーザーが画面を見ている状態。小細工せず標準API通りに再生。
-    // -----------------------------------------------------------
-    if (document.visibilityState === "visible") {
-      try {
-        await audio.play();
-        // 成功（handlePlayイベントでも更新されるが、念のため）
-      } catch (e) {
-        console.error("Normal play failed:", e);
-        // 通常時はリロードしない（UXを損なうため）
-        setIsPlaying(false);
-      }
-      
-      return; // ⛔️ 重要: ここで関数を抜ける。これ以降は絶対に走らせない。
-    }
-
-    // -----------------------------------------------------------
-    // 【ルートB: バックグラウンド / ロック画面 / PWA復帰】
-    // iOS PWAの接続切れやバッファ破棄を想定して動く。
-    // -----------------------------------------------------------
     
-    // 1. まずは「今のまま」再生できるか試す（バッファが残っている場合）
     try {
       await audio.play();
-      // 成功
-    } catch (firstError) {
-      console.warn("BG: Quick resume failed, attempting Force Reload:", firstError);
-      
-      // 2. ダメなら「強制リロード」で接続を作り直す（PWA対策の本丸）
-      try {
-        const savedTime = audio.currentTime;
-        audio.load();
-        
-        // load() 直後の currentTime 設定は不安定なため、エラー無視
-        try {
-          audio.currentTime = savedTime;
-        } catch {
-          // 無視して続行
-        }
-        
-        await audio.play();
-        // 成功
-      } catch (finalError) {
-        console.error("BG: All recovery attempts failed:", finalError);
-        setIsPlaying(false);
-        if ("mediaSession" in navigator) {
-          navigator.mediaSession.playbackState = "paused";
-        }
-      }
+    } catch (e) {
+      console.error("Foreground play failed:", e);
+      setIsPlaying(false);
     }
   }, []);
+  
+  // バックグラウンド用（完全同期、URL再取得付き）
+  const resumePlaybackBackground = useCallback(() => {
+    const audio = audioRef.current;
+    const currentSongData = currentStreamRef.current;
+    
+    if (!audio) return;
+    
+    // まず単純に play() を試す（fire-and-forget）
+    const playPromise = audio.play();
+    
+    if (playPromise !== undefined) {
+      playPromise.catch((error) => {
+        console.warn("BG: Quick play failed:", error);
+        
+        // URLが期限切れ or ネットワーク切断の可能性
+        // 新しいURLを取得して再試行
+        if (currentSongData && currentSongData.songId) {
+          console.log("BG: Fetching fresh stream URL...");
+          
+          getStreamUrl(currentSongData.songId, userIdRef.current)
+            .then((streamData) => {
+              console.log("BG: Got fresh URL, reloading...");
+              
+              // 新しいURLをセット
+              currentStreamRef.current = {
+                songId: currentSongData.songId,
+                url: streamData.url,
+                expiresAt: streamData.expiresAt,
+              };
+              
+              const savedTime = audio.currentTime;
+              audio.src = streamData.url;
+              audio.load();
+              
+              // 位置復元（エラー無視）
+              try {
+                audio.currentTime = savedTime;
+              } catch {
+                // ignore
+              }
+              
+              // 再生
+              audio.play().catch((e) => {
+                console.error("BG: Final play failed:", e);
+                setIsPlaying(false);
+                if ("mediaSession" in navigator) {
+                  navigator.mediaSession.playbackState = "paused";
+                }
+              });
+            })
+            .catch((fetchError) => {
+              console.error("BG: Failed to fetch fresh URL:", fetchError);
+              setIsPlaying(false);
+              if ("mediaSession" in navigator) {
+                navigator.mediaSession.playbackState = "paused";
+              }
+            });
+        } else {
+          // currentSongDataがない場合は諦める
+          setIsPlaying(false);
+          if ("mediaSession" in navigator) {
+            navigator.mediaSession.playbackState = "paused";
+          }
+        }
+      });
+    }
+  }, []);
+  
+  // 統合された resumePlayback（visibilityで分岐）
+  const resumePlayback = useCallback(() => {
+    if (document.visibilityState === "visible") {
+      resumePlaybackForeground();
+    } else {
+      resumePlaybackBackground();
+    }
+  }, [resumePlaybackForeground, resumePlaybackBackground]);
 
   // ============================================
   // Load and Play Song
@@ -303,6 +345,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
         isPreviewRef.current = streamData.isPreview;
         previewDurationRef.current = streamData.previewDuration || 30;
+        
+        // バックグラウンド復帰用にストリーム情報を保存
+        currentStreamRef.current = {
+          songId: song.id,
+          url: streamData.url,
+          expiresAt: (streamData as StreamResponse).expiresAt || Date.now() + 3600000,
+        };
 
         setCurrentSong(song);
         setCurrentIndex(index);
