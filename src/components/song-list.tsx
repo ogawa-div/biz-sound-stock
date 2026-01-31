@@ -123,10 +123,18 @@ export function SongList() {
       .catch((err) => console.error("Error fetching favorites:", err))
   }, [user, session])
 
-  const handlePlayAll = () => {
+  // Daily Mix の再生/停止トグル
+  const handleDailyMixToggle = () => {
     if (songs.length === 0) return
-    const shuffled = shuffleArray(songs)
-    playSong(shuffled[0], undefined, shuffled)
+    
+    // 再生中なら停止
+    if (isPlaying) {
+      toggle()
+    } else {
+      // 停止中なら新しいシャッフルで再生開始
+      const shuffled = shuffleArray(songs)
+      playSong(shuffled[0], undefined, shuffled)
+    }
   }
 
   const handlePlaySong = (song: Song) => {
@@ -197,13 +205,13 @@ export function SongList() {
   return (
     <div className="px-4 py-6 md:p-8">
       {/* Header + Daily Mix Button Container */}
-      <div className="mb-8 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-        {/* Left: Album Art + Text Info */}
+      <div className="mb-8 flex flex-col gap-6">
+        {/* Album Art + Text Info + PC版ボタン */}
         <div className="flex items-center gap-6">
           <div className="flex h-32 w-32 md:h-48 md:w-48 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-accent/60 to-primary/60 shadow-xl">
             <Music className="h-14 w-14 md:h-20 md:w-20 text-foreground" />
           </div>
-          <div>
+          <div className="flex-1">
             <p className="text-sm font-medium uppercase tracking-widest text-accent">STATION</p>
             <h1 className="mt-2 text-2xl md:text-4xl font-bold tracking-tight">BizSound Radio</h1>
             <p className="mt-2 text-muted-foreground">
@@ -212,47 +220,55 @@ export function SongList() {
             <p className="mt-1 text-sm text-muted-foreground">
               {songs.length} tracks
             </p>
-            {/* PC版のみ表示: Daily Mix バッジ */}
-            <div className="hidden md:flex items-center gap-2 mt-3">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1 text-sm font-medium text-accent">
-                <Sparkles className="h-3.5 w-3.5" />
+          </div>
+
+          {/* PC版: 丸い再生ボタン + テキストをグループ化 */}
+          <div className="hidden md:flex items-center gap-4">
+            <button
+              onClick={handleDailyMixToggle}
+              disabled={songs.length === 0}
+              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg cursor-pointer transition-all duration-300 hover:scale-105 hover:brightness-110 hover:shadow-xl hover:shadow-accent/20 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+              title={isPlaying ? "一時停止" : (dayInfo ? dayInfo.title : "Daily Mix")}
+            >
+              {isPlaying ? (
+                <Pause className="h-7 w-7" />
+              ) : (
+                <Play className="h-7 w-7 ml-0.5" />
+              )}
+            </button>
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-amber-400" />
+              <span className="font-medium text-amber-400">
                 {dayInfo ? dayInfo.title : "Daily Mix"}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Right: Daily Mix Button */}
         {/* スマホ版: カプセル型ボタン（テキスト付き） */}
         <button
-          onClick={handlePlayAll}
+          onClick={handleDailyMixToggle}
           disabled={songs.length === 0}
           className="md:hidden group flex items-center gap-4 rounded-xl bg-gradient-to-r from-accent/20 to-primary/20 p-4 transition-all duration-300 hover:from-accent/30 hover:to-primary/30 hover:shadow-lg hover:shadow-accent/10 disabled:opacity-50 disabled:cursor-not-allowed w-full"
         >
           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg group-hover:scale-105 transition-transform duration-300">
-            <Play className="h-6 w-6 ml-0.5" />
+            {isPlaying ? (
+              <Pause className="h-6 w-6" />
+            ) : (
+              <Play className="h-6 w-6 ml-0.5" />
+            )}
           </div>
           <div className="text-left">
             <div className="flex items-center gap-2">
               <span className="font-bold text-lg text-foreground">
-                {dayInfo ? dayInfo.title : "Daily Mix"}
+                {isPlaying ? "再生中" : (dayInfo ? dayInfo.title : "Daily Mix")}
               </span>
               <Sparkles className="h-4 w-4 text-accent" />
             </div>
             <p className="text-sm text-muted-foreground">
-              {dayInfo ? dayInfo.sub : "Curated for store atmosphere"}
+              {isPlaying ? "タップで一時停止" : (dayInfo ? dayInfo.sub : "Curated for store atmosphere")}
             </p>
           </div>
-        </button>
-
-        {/* PC版: 丸い再生ボタン */}
-        <button
-          onClick={handlePlayAll}
-          disabled={songs.length === 0}
-          className="hidden md:flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg cursor-pointer transition-all duration-300 hover:scale-105 hover:brightness-110 hover:shadow-xl hover:shadow-accent/20 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
-          title={dayInfo ? dayInfo.title : "Daily Mix"}
-        >
-          <Play className="h-7 w-7 ml-0.5" />
         </button>
       </div>
 
