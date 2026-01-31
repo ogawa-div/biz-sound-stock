@@ -226,41 +226,63 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ============================================
-  // CORE: Resume Playback (Visibility-Aware)
-  // Foreground: 通常再生
-  // Background/PWA: 叩き起こしロジック
+  // CORE: Resume Playback (Complete Separation)
+  // Foreground と Background を物理的に分断
   // ============================================
-  const resumePlayback = useCallback(() => {
+  const resumePlayback = useCallback(async () => {
     const audio = audioRef.current;
     if (!audio || !audio.src) return;
 
+    // -----------------------------------------------------------
+    // 【ルートA: フォアグラウンド】
+    // ユーザーが画面を見ている状態。小細工せず標準API通りに再生。
+    // -----------------------------------------------------------
     if (document.visibilityState === "visible") {
-      // 【パターンA：通常再生】
-      // アプリを開いている時は、余計なことをせず素直に再生する
-      audio.play().catch((e) => {
-        console.error("Standard play failed:", e);
-      });
-      // 成功時は handlePlay イベントで setIsPlaying(true)
-      
-    } else {
-      // 【パターンB：PWAバックグラウンド対策】
-      // アプリが隠れている（ロック画面など）時だけ、叩き起こしロジックを使う
-      
-      // 1. 強制ロード（同期実行）で接続を復活させる
-      audio.load();
-      
-      // 2. 待たずに再生命令を発火
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((e) => {
-          console.error("Background Force-Play failed:", e);
-          setIsPlaying(false);
-          if ("mediaSession" in navigator) {
-            navigator.mediaSession.playbackState = "paused";
-          }
-        });
+      try {
+        await audio.play();
+        // 成功（handlePlayイベントでも更新されるが、念のため）
+      } catch (e) {
+        console.error("Normal play failed:", e);
+        // 通常時はリロードしない（UXを損なうため）
+        setIsPlaying(false);
       }
-      // 成功時は handlePlay イベントで setIsPlaying(true)
+      
+      return; // ⛔️ 重要: ここで関数を抜ける。これ以降は絶対に走らせない。
+    }
+
+    // -----------------------------------------------------------
+    // 【ルートB: バックグラウンド / ロック画面 / PWA復帰】
+    // iOS PWAの接続切れやバッファ破棄を想定して動く。
+    // -----------------------------------------------------------
+    
+    // 1. まずは「今のまま」再生できるか試す（バッファが残っている場合）
+    try {
+      await audio.play();
+      // 成功
+    } catch (firstError) {
+      console.warn("BG: Quick resume failed, attempting Force Reload:", firstError);
+      
+      // 2. ダメなら「強制リロード」で接続を作り直す（PWA対策の本丸）
+      try {
+        const savedTime = audio.currentTime;
+        audio.load();
+        
+        // load() 直後の currentTime 設定は不安定なため、エラー無視
+        try {
+          audio.currentTime = savedTime;
+        } catch {
+          // 無視して続行
+        }
+        
+        await audio.play();
+        // 成功
+      } catch (finalError) {
+        console.error("BG: All recovery attempts failed:", finalError);
+        setIsPlaying(false);
+        if ("mediaSession" in navigator) {
+          navigator.mediaSession.playbackState = "paused";
+        }
+      }
     }
   }, []);
 
