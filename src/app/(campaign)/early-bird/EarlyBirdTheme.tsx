@@ -77,8 +77,8 @@ const EarlyBirdTheme: React.FC = () => {
             
             {/* シンプルな説明文 */}
             <p className="font-sans text-slate-600 text-lg max-w-md mb-10">
-              JASRAC申請不要。工事不要。<br/>
-              店舗経営者のための安全な選択肢。
+              店舗でのBGM利用が規約違反にならない、<br/>
+              経営者のための安心・安全な選択肢。
             </p>
             
             {/* CTAボタン */}
