@@ -4,7 +4,7 @@ import { useState, useRef } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Music, Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react"
+import { Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react"
 import { createClient } from "@supabase/supabase-js"
 
 export default function LoginPage() {
@@ -68,8 +68,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary">
-            <Music className="h-8 w-8 text-primary-foreground" />
+          <div className="mx-auto mb-4 h-16 w-16 rounded-2xl overflow-hidden">
+            <img src="/icons/icon.svg" alt="BizSound Stock" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-bold text-foreground">BizSound Stock</h1>
           <p className="mt-2 text-muted-foreground">店舗向けBGMサービス</p>
