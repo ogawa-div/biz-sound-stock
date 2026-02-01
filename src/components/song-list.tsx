@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Heart, Play, Pause, Loader2, Music, Sparkles } from "lucide-react"
+import { Heart, Play, Pause, Loader2, Music, Sparkles, Square } from "lucide-react"
 import { usePlayer } from "@/context/PlayerContext"
 import { useSongsStore } from "@/store/songs-store"
 import { useAuth } from "@/lib/auth/context"
@@ -92,7 +92,7 @@ export function SongList() {
   const { songs, isLoading, fetchSongs } = useSongsStore()
   
   const { user, session } = useAuth()
-  const { currentSong, isPlaying, playSong, toggle, queue } = usePlayer()
+  const { currentSong, isPlaying, playSong, toggle, queue, stop } = usePlayer()
 
   // コンポーネントマウント時に曲を取得
   useEffect(() => {
@@ -232,30 +232,46 @@ export function SongList() {
         </div>
 
         {/* Daily Mix リッチカード型ボタン（PC/スマホ共通） */}
-        <button
-          onClick={handleDailyMixToggle}
-          disabled={songs.length === 0}
-          className="group flex items-center gap-4 rounded-xl bg-gradient-to-r from-accent/20 to-primary/20 p-4 transition-all duration-300 hover:from-accent/30 hover:to-primary/30 hover:shadow-lg hover:shadow-accent/10 disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto cursor-pointer"
-        >
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg group-hover:scale-105 transition-transform duration-300">
-            {isPlayingThisStation && isPlaying ? (
-              <Pause className="h-5 w-5" />
-            ) : (
-              <Play className="h-5 w-5 ml-0.5" />
-            )}
-          </div>
-          <div className="text-left">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-foreground">
-                {dayInfo ? dayInfo.title : "Daily Mix"}
-              </span>
-              <Sparkles className="h-4 w-4 text-accent" />
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <button
+            onClick={handleDailyMixToggle}
+            disabled={songs.length === 0}
+            className="group flex flex-1 items-center gap-4 rounded-xl bg-gradient-to-r from-accent/20 to-primary/20 p-4 transition-all duration-300 hover:from-accent/30 hover:to-primary/30 hover:shadow-lg hover:shadow-accent/10 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg group-hover:scale-105 transition-transform duration-300">
+              {isPlayingThisStation && isPlaying ? (
+                <Pause className="h-5 w-5" />
+              ) : (
+                <Play className="h-5 w-5 ml-0.5" />
+              )}
             </div>
-            <p className="text-sm text-muted-foreground">
-              {dayInfo ? dayInfo.sub : "Curated for store atmosphere"}
-            </p>
-          </div>
-        </button>
+            <div className="text-left">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-foreground">
+                  {dayInfo ? dayInfo.title : "Daily Mix"}
+                </span>
+                <Sparkles className="h-4 w-4 text-accent" />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {dayInfo ? dayInfo.sub : "Curated for store atmosphere"}
+              </p>
+            </div>
+          </button>
+          
+          {/* 停止ボタン（再生中のみ表示） */}
+          {isPlayingThisStation && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                stop();
+              }}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted/50 hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+              title="完全停止（リセット）"
+            >
+              <Square className="h-5 w-5 fill-current" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Song List */}

@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Heart, Music, Crown, Loader2 } from "lucide-react"
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Heart, Music, Crown, Loader2, Square } from "lucide-react"
 import { useState, useEffect, useCallback } from "react"
 import { usePlayer } from "@/context/PlayerContext"
 import { useAuth } from "@/lib/auth/context"
@@ -88,6 +88,7 @@ export function MusicPlayer() {
     seek,
     toggleMute,
     setUserId,
+    stop,
   } = usePlayer()
   
   // Preview duration (30 seconds for preview mode)
@@ -234,6 +235,16 @@ export function MusicPlayer() {
                 disabled={!currentSong}
               >
                 <SkipForward className="h-4 w-4" />
+              </Button>
+              <Button 
+                size="icon" 
+                variant="ghost" 
+                className="h-8 w-8 hover:text-destructive hover:bg-destructive/10"
+                onClick={stop}
+                disabled={!currentSong}
+                title="完全停止（リセット）"
+              >
+                <Square className="h-4 w-4 fill-current" />
               </Button>
             </div>
             <div className="hidden w-full max-w-md items-center gap-2 md:flex">

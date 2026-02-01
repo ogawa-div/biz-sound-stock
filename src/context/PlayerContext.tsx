@@ -39,6 +39,7 @@ interface PlayerContextType {
   setUserId: (userId: string | null) => void;
   dismissUpgradePrompt: () => void;
   clearQueue: () => void;
+  stop: () => void;
 }
 
 interface StreamResponse {
@@ -444,6 +445,45 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     stopProgressTracking();
   }, [clearPreviewTimeout, stopProgressTracking]);
 
+  // 完全停止（Stop）: 再生を停止し、曲を解除してリセット
+  const stop = useCallback(() => {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.src = "";
+    }
+    
+    // State をリセット
+    queueRef.current = [];
+    currentIndexRef.current = -1;
+    nextSongCacheRef.current = null;
+    
+    setQueue([]);
+    setCurrentSong(null);
+    setCurrentPlaylist(null);
+    setCurrentIndex(-1);
+    setProgress(0);
+    setDuration(0);
+    setIsPlaying(false);
+    setIsLoading(false);
+    setIsPreview(false);
+    setShowUpgradePrompt(false);
+    
+    clearPreviewTimeout();
+    stopProgressTracking();
+    
+    // MediaSession をクリア
+    if ("mediaSession" in navigator) {
+      try {
+        navigator.mediaSession.metadata = null;
+        navigator.mediaSession.playbackState = "none";
+      } catch {
+        // ignore
+      }
+    }
+  }, [clearPreviewTimeout, stopProgressTracking]);
+
   // ============================================
   // Audio Event Handlers
   // ============================================
@@ -611,6 +651,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     setUserId,
     dismissUpgradePrompt,
     clearQueue,
+    stop,
   };
 
   return (
@@ -665,5 +706,6 @@ export const usePlayerActions = () => {
     setUserId: player.setUserId,
     dismissUpgradePrompt: player.dismissUpgradePrompt,
     clearQueue: player.clearQueue,
+    stop: player.stop,
   };
 };
