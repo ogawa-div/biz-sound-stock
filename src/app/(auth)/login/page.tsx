@@ -193,9 +193,13 @@ export default function LoginPage() {
           <Link href="/terms" className="text-accent hover:underline">
             利用規約
           </Link>
-          と
+          、
           <Link href="/privacy" className="text-accent hover:underline">
             プライバシーポリシー
+          </Link>
+          、
+          <Link href="/legal/tokusho" className="text-accent hover:underline">
+            特定商取引法に基づく表記
           </Link>
           に同意したことになります。
         </p>

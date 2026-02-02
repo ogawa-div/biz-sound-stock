@@ -227,11 +227,24 @@ const AbstractTheme: React.FC = () => {
       </section>
 
       <footer className="bg-black text-white py-12 px-6">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
-          <div className="text-2xl uppercase tracking-tighter font-black">
-            {SERVICE_NAME}
+        <div className="max-w-6xl mx-auto flex flex-col gap-8">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-8">
+            <div className="text-2xl uppercase tracking-tighter font-black">
+              {SERVICE_NAME}
+            </div>
+            <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-400">
+              <Link href="/terms" className="hover:text-white transition-colors">
+                利用規約
+              </Link>
+              <Link href="/privacy" className="hover:text-white transition-colors">
+                プライバシーポリシー
+              </Link>
+              <Link href="/legal/tokusho" className="hover:text-white transition-colors">
+                特定商取引法に基づく表記
+              </Link>
+            </div>
           </div>
-          <div className="font-sans text-sm text-gray-400">
+          <div className="text-center font-sans text-sm text-gray-500">
             © 2026 {SERVICE_NAME}. All Rights Reserved.
           </div>
         </div>
